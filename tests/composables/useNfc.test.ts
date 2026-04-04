@@ -275,22 +275,27 @@ describe('useNfc', () => {
     })
 
     it('is false when NDEFReader is not available', () => {
+      // @ts-expect-error NDEFReader not in globalThis type
       const saved = globalThis.NDEFReader
       // @ts-ignore
+      // @ts-expect-error
       delete globalThis.NDEFReader
 
       const { isSupported } = useNfc()
       expect(isSupported.value).toBe(false)
 
       // @ts-ignore
+      // @ts-expect-error
       globalThis.NDEFReader = saved
     })
   })
 
   describe('startScan', () => {
     it('sets error when not supported', async () => {
+      // @ts-expect-error NDEFReader not in globalThis type
       const saved = globalThis.NDEFReader
       // @ts-ignore
+      // @ts-expect-error
       delete globalThis.NDEFReader
 
       const { startScan, error, isSupported } = useNfc()
@@ -300,6 +305,7 @@ describe('useNfc', () => {
       expect(error.value).toBe('このデバイスはNFCに対応していません')
 
       // @ts-ignore
+      // @ts-expect-error
       globalThis.NDEFReader = saved
     })
 
@@ -378,8 +384,10 @@ describe('useNfc', () => {
     })
 
     it('returns false when not supported', async () => {
+      // @ts-expect-error NDEFReader not in globalThis type
       const saved = globalThis.NDEFReader
       // @ts-ignore
+      // @ts-expect-error
       delete globalThis.NDEFReader
 
       const { writeItemUrl, error } = useNfc()
@@ -389,6 +397,7 @@ describe('useNfc', () => {
       expect(error.value).toBe('このデバイスはNFCに対応していません')
 
       // @ts-ignore
+      // @ts-expect-error
       globalThis.NDEFReader = saved
     })
 
