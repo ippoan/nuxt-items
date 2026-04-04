@@ -1,31 +1,31 @@
 export interface Item {
   id: string
-  tenant_id: string
-  parent_id: string | null
-  owner_type: 'org' | 'personal'
-  owner_user_id: string | null
-  item_type: 'item' | 'folder'
+  tenantId: string
+  parentId: string | null
+  ownerType: 'org' | 'personal'
+  ownerUserId: string | null
+  itemType: 'item' | 'folder'
   name: string
   barcode: string
   category: string
   description: string
-  image_url: string
+  imageUrl: string
   url: string
   quantity: number
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CreateItem {
-  parent_id?: string | null
-  owner_type?: string
-  owner_user_id?: string | null
-  item_type?: string
+  parentId?: string | null
+  ownerType?: string
+  ownerUserId?: string | null
+  itemType?: string
   name: string
   barcode?: string
   category?: string
   description?: string
-  image_url?: string
+  imageUrl?: string
   url?: string
   quantity?: number
 }
@@ -35,16 +35,16 @@ export interface UpdateItem {
   barcode?: string
   category?: string
   description?: string
-  image_url?: string
+  imageUrl?: string
   url?: string
   quantity?: number
 }
 
 export interface ItemFile {
   id: string
-  tenant_id: string
+  tenantId: string
   filename: string
-  content_type: string
-  size_bytes: number
-  created_at: string
+  contentType: string
+  sizeBytes: number
+  createdAt: string
 }
