@@ -1,47 +1,41 @@
+// gRPC proxy: mock-only (requires Cloudflare Service Binding)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { isLive, stubNitroGlobals } from '../helpers/api-test-env'
 
-// --- Mock h3/nitro auto-imports ---
-const mockGetRouterParam = vi.fn()
-const mockGetHeader = vi.fn()
-const mockSetHeader = vi.fn()
+// --- Mock mode setup ---
 const mockReadRawBody = vi.fn()
-const mockCreateError = vi.fn((opts: any) => {
-  const err = new Error(opts.message)
-  ;(err as any).statusCode = opts.statusCode
-  return err
-})
-vi.stubGlobal('getRouterParam', mockGetRouterParam)
-vi.stubGlobal('getHeader', mockGetHeader)
-vi.stubGlobal('setHeader', mockSetHeader)
-vi.stubGlobal('readRawBody', mockReadRawBody)
-vi.stubGlobal('createError', mockCreateError)
-vi.stubGlobal('defineEventHandler', (handler: Function) => handler)
+let handler: any
+let mocks: Record<string, ReturnType<typeof vi.fn>>
 
-const handler = (await import('../../server/api/grpc/[...path]')).default as any
+if (!isLive) {
+  mocks = stubNitroGlobals()
+  vi.stubGlobal('readRawBody', mockReadRawBody)
+  handler = (await import('../../server/api/grpc/[...path]')).default as any
+}
 
-describe('grpc-proxy', () => {
+describe.skipIf(isLive)('grpc-proxy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('throws 500 when GRPC_PROXY_SERVICE binding is not available', async () => {
-    mockGetRouterParam.mockReturnValue('some/path')
+    mocks.getRouterParam.mockReturnValue('some/path')
     const event = { method: 'POST', context: {} }
     await expect(handler(event)).rejects.toThrow('GRPC_PROXY_SERVICE binding not available')
-    expect(mockCreateError).toHaveBeenCalledWith({
+    expect(mocks.createError).toHaveBeenCalledWith({
       statusCode: 500,
       message: 'GRPC_PROXY_SERVICE binding not available',
     })
   })
 
   it('throws 500 when cloudflare.env exists but no GRPC_PROXY_SERVICE', async () => {
-    mockGetRouterParam.mockReturnValue('some/path')
+    mocks.getRouterParam.mockReturnValue('some/path')
     const event = { method: 'POST', context: { cloudflare: { env: {} } } }
     await expect(handler(event)).rejects.toThrow('GRPC_PROXY_SERVICE binding not available')
   })
 
   it('forwards POST request with all headers and body', async () => {
-    mockGetRouterParam.mockReturnValue('my.service/Method')
+    mocks.getRouterParam.mockReturnValue('my.service/Method')
 
     const headerMap: Record<string, string> = {
       'content-type': 'application/grpc-web+proto',
@@ -50,7 +44,7 @@ describe('grpc-proxy', () => {
       'x-auth-token': 'my-token',
       'x-organization-id': 'org-123',
     }
-    mockGetHeader.mockImplementation((_event: any, name: string) => headerMap[name])
+    mocks.getHeader.mockImplementation((_event: any, name: string) => headerMap[name])
     mockReadRawBody.mockResolvedValue(new Uint8Array([1, 2, 3]))
 
     const mockResponseHeaders = new Headers({
@@ -94,15 +88,15 @@ describe('grpc-proxy', () => {
     expect(sentHeaders.get('x-organization-id')).toBe('org-123')
 
     // Verify response headers were set
-    expect(mockSetHeader).toHaveBeenCalledWith(event, 'content-type', 'application/grpc-web+proto')
-    expect(mockSetHeader).toHaveBeenCalledWith(event, 'grpc-status', '0')
+    expect(mocks.setHeader).toHaveBeenCalledWith(event, 'content-type', 'application/grpc-web+proto')
+    expect(mocks.setHeader).toHaveBeenCalledWith(event, 'grpc-status', '0')
 
     expect(result).toBe(mockResponseBody)
   })
 
   it('forwards GET request without body', async () => {
-    mockGetRouterParam.mockReturnValue('my.service/Check')
-    mockGetHeader.mockReturnValue(undefined)
+    mocks.getRouterParam.mockReturnValue('my.service/Check')
+    mocks.getHeader.mockReturnValue(undefined)
 
     const mockServiceFetch = vi.fn().mockResolvedValue({
       headers: new Headers(),
@@ -134,8 +128,8 @@ describe('grpc-proxy', () => {
   })
 
   it('handles empty path', async () => {
-    mockGetRouterParam.mockReturnValue('')
-    mockGetHeader.mockReturnValue(undefined)
+    mocks.getRouterParam.mockReturnValue('')
+    mocks.getHeader.mockReturnValue(undefined)
 
     const mockServiceFetch = vi.fn().mockResolvedValue({
       headers: new Headers(),
@@ -162,8 +156,8 @@ describe('grpc-proxy', () => {
   })
 
   it('handles undefined path (getRouterParam returns undefined)', async () => {
-    mockGetRouterParam.mockReturnValue(undefined)
-    mockGetHeader.mockReturnValue(undefined)
+    mocks.getRouterParam.mockReturnValue(undefined)
+    mocks.getHeader.mockReturnValue(undefined)
 
     const mockServiceFetch = vi.fn().mockResolvedValue({
       headers: new Headers(),
@@ -190,9 +184,9 @@ describe('grpc-proxy', () => {
   })
 
   it('skips headers that are not present', async () => {
-    mockGetRouterParam.mockReturnValue('path')
+    mocks.getRouterParam.mockReturnValue('path')
     // Only content-type is set, others are undefined
-    mockGetHeader.mockImplementation((_event: any, name: string) => {
+    mocks.getHeader.mockImplementation((_event: any, name: string) => {
       if (name === 'content-type') return 'application/json'
       return undefined
     })
