@@ -23,6 +23,7 @@
         :breadcrumbs="breadcrumbs"
         @navigate="navigateToBreadcrumb"
         @navigate-root="navigateToRoot"
+        @drop="onBreadcrumbDrop"
       />
     </div>
 
@@ -106,11 +107,13 @@
     <ItemsItemList
       :items="displayItems"
       :loading="status === 'pending'"
+      :search-mode="searchMode"
       @navigate="navigateToChild"
       @select="onSelect"
       @edit="onEdit"
       @delete="onDelete"
       @nfc-write="onNfcWrite"
+      @move="onMoveItem"
     />
 
     <!-- 作成/編集モーダル -->
@@ -142,6 +145,7 @@
         @close="showDetail = false"
         @edit="onDetailEdit"
         @change-ownership="onChangeOwnership"
+        @convert-type="onConvertType"
       />
     </UModal>
 
@@ -188,7 +192,9 @@ const {
   createItem,
   updateItem,
   deleteItem,
+  moveItem,
   changeOwnership,
+  convertItemType,
   searchByBarcode,
   getItem,
   navigateToChild,
@@ -330,6 +336,46 @@ function openCreateFormWithBarcode(barcode: string) {
   showForm.value = true
 }
 
+async function onBreadcrumbDrop(payload: { itemId: string; parentId: string }) {
+  try {
+    await moveItem(payload.itemId, payload.parentId)
+    const toast = useToast()
+    toast.add({
+      title: 'アイテムを移動しました',
+      icon: 'i-heroicons-check-circle',
+      color: 'green',
+    })
+  } catch (e: any) {
+    const toast = useToast()
+    toast.add({
+      title: '移動に失敗しました',
+      description: e.message || 'エラーが発生しました',
+      icon: 'i-heroicons-exclamation-triangle',
+      color: 'red',
+    })
+  }
+}
+
+async function onMoveItem(payload: { itemId: string; targetId: string }) {
+  try {
+    await moveItem(payload.itemId, payload.targetId)
+    const toast = useToast()
+    toast.add({
+      title: 'アイテムを移動しました',
+      icon: 'i-heroicons-check-circle',
+      color: 'green',
+    })
+  } catch (e: any) {
+    const toast = useToast()
+    toast.add({
+      title: '移動に失敗しました',
+      description: e.message || 'エラーが発生しました',
+      icon: 'i-heroicons-exclamation-triangle',
+      color: 'red',
+    })
+  }
+}
+
 async function onChangeOwnership(item: Item, newOwnerType: string) {
   console.log('[ChangeOwnership] called:', item.id, newOwnerType)
   try {
@@ -347,6 +393,32 @@ async function onChangeOwnership(item: Item, newOwnerType: string) {
     const toast = useToast()
     toast.add({
       title: '移動に失敗しました',
+      description: e.message || 'エラーが発生しました',
+      icon: 'i-heroicons-exclamation-triangle',
+      color: 'red',
+    })
+  }
+}
+
+async function onConvertType(item: Item, newItemType: string) {
+  try {
+    const response = await convertItemType(item.id, newItemType)
+    showDetail.value = false
+    const toast = useToast()
+    const label = newItemType === 'folder' ? 'フォルダ' : 'アイテム'
+    const moved = response.childrenMoved
+    const msg = moved > 0
+      ? `${label}に変換しました（${moved}件のアイテムを移動）`
+      : `${label}に変換しました`
+    toast.add({
+      title: msg,
+      icon: 'i-heroicons-check-circle',
+      color: 'green',
+    })
+  } catch (e: any) {
+    const toast = useToast()
+    toast.add({
+      title: '種別変更に失敗しました',
       description: e.message || 'エラーが発生しました',
       icon: 'i-heroicons-exclamation-triangle',
       color: 'red',
@@ -377,10 +449,15 @@ async function onSubmitForm(data: {
   description: string
   imageUrl: string
   quantity: number
+  itemType: string
 }) {
   try {
     if (editingItem.value) {
       await updateItem(editingItem.value.id, data)
+      // 種別が変わった場合は ConvertItemType を呼ぶ
+      if (data.itemType && data.itemType !== editingItem.value.itemType) {
+        await convertItemType(editingItem.value.id, data.itemType)
+      }
     } else {
       await createItem(data)
     }

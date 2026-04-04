@@ -7,7 +7,7 @@
     </template>
 
     <div class="space-y-3 sm:space-y-4">
-      <UFormGroup label="バーコード">
+      <UFormGroup v-if="form.itemType !== 'folder'" label="バーコード">
         <div class="flex gap-2">
           <UInput v-model="form.barcode" placeholder="バーコード（任意）" class="flex-1" @keyup.enter="onBarcodeLookup" />
           <UButton
@@ -28,55 +28,57 @@
           />
         </div>
       </UFormGroup>
-      <ItemsBarcodeScanner
-        v-model="showBarcodeScanner"
-        @scanned="onBarcodeScanned"
-      />
+      <template v-if="form.itemType !== 'folder'">
+        <ItemsBarcodeScanner
+          v-model="showBarcodeScanner"
+          @scanned="onBarcodeScanned"
+        />
 
-      <!-- 商品検索ステータス -->
-      <div v-if="lookupStatus === 'loading'" class="flex items-center gap-2 text-sm text-gray-500">
-        <UIcon name="i-heroicons-arrow-path" class="animate-spin" />
-        商品情報を検索中...
-      </div>
-      <UAlert
-        v-else-if="lookupStatus === 'found'"
-        color="green"
-        variant="subtle"
-        icon="i-heroicons-check-circle"
-        title="商品情報を自動入力しました"
-        :close-button="{ icon: 'i-heroicons-x-mark', variant: 'ghost', size: '2xs' }"
-        @close="resetLookup"
-      />
-      <UAlert
-        v-else-if="lookupStatus === 'not_found'"
-        color="yellow"
-        variant="subtle"
-        icon="i-heroicons-information-circle"
-        title="商品情報が見つかりませんでした。手動で入力してください。"
-        :close-button="{ icon: 'i-heroicons-x-mark', variant: 'ghost', size: '2xs' }"
-        @close="resetLookup"
-      />
-      <UAlert
-        v-else-if="lookupStatus === 'error'"
-        color="red"
-        variant="subtle"
-        icon="i-heroicons-exclamation-triangle"
-        title="商品検索でエラーが発生しました"
-        :close-button="{ icon: 'i-heroicons-x-mark', variant: 'ghost', size: '2xs' }"
-        @close="resetLookup"
-      />
+        <!-- 商品検索ステータス -->
+        <div v-if="lookupStatus === 'loading'" class="flex items-center gap-2 text-sm text-gray-500">
+          <UIcon name="i-heroicons-arrow-path" class="animate-spin" />
+          商品情報を検索中...
+        </div>
+        <UAlert
+          v-else-if="lookupStatus === 'found'"
+          color="green"
+          variant="subtle"
+          icon="i-heroicons-check-circle"
+          title="商品情報を自動入力しました"
+          :close-button="{ icon: 'i-heroicons-x-mark', variant: 'ghost', size: '2xs' }"
+          @close="resetLookup"
+        />
+        <UAlert
+          v-else-if="lookupStatus === 'not_found'"
+          color="yellow"
+          variant="subtle"
+          icon="i-heroicons-information-circle"
+          title="商品情報が見つかりませんでした。手動で入力してください。"
+          :close-button="{ icon: 'i-heroicons-x-mark', variant: 'ghost', size: '2xs' }"
+          @close="resetLookup"
+        />
+        <UAlert
+          v-else-if="lookupStatus === 'error'"
+          color="red"
+          variant="subtle"
+          icon="i-heroicons-exclamation-triangle"
+          title="商品検索でエラーが発生しました"
+          :close-button="{ icon: 'i-heroicons-x-mark', variant: 'ghost', size: '2xs' }"
+          @close="resetLookup"
+        />
 
-      <!-- initialProduct ロード中 -->
-      <div v-if="initialProduct?.loading" class="flex items-center gap-2 text-sm text-gray-500">
-        <UIcon name="i-heroicons-arrow-path" class="animate-spin" />
-        商品情報を取得中...
-      </div>
+        <!-- initialProduct ロード中 -->
+        <div v-if="initialProduct?.loading" class="flex items-center gap-2 text-sm text-gray-500">
+          <UIcon name="i-heroicons-arrow-path" class="animate-spin" />
+          商品情報を取得中...
+        </div>
 
-      <!-- Amazon 商品画像プレビュー -->
-      <div v-if="amazonImageUrl" class="flex items-center gap-3">
-        <img :src="amazonImageUrl" class="w-20 h-20 object-contain rounded border" alt="商品画像" />
-        <p class="text-xs text-gray-400">Amazon 商品画像（参考）</p>
-      </div>
+        <!-- Amazon 商品画像プレビュー -->
+        <div v-if="amazonImageUrl" class="flex items-center gap-3">
+          <img :src="amazonImageUrl" class="w-20 h-20 object-contain rounded border" alt="商品画像" />
+          <p class="text-xs text-gray-400">Amazon 商品画像（参考）</p>
+        </div>
+      </template>
 
       <UFormGroup label="名前" required>
         <UInput v-model="form.name" placeholder="物品名を入力" />
@@ -86,13 +88,30 @@
         <ItemsImagePicker v-model="form.imageUrl" />
       </UFormGroup>
 
-      <UFormGroup v-if="!isEdit" label="種別">
+      <UFormGroup v-if="!isEdit" label="所有">
         <USelectMenu
           v-model="form.ownerType"
           :options="ownerTypeOptions"
           value-attribute="value"
           option-attribute="label"
         />
+      </UFormGroup>
+
+      <UFormGroup label="種別">
+        <UButtonGroup size="sm">
+          <UButton
+            :color="form.itemType === 'item' ? 'primary' : 'gray'"
+            @click="form.itemType = 'item'"
+          >
+            アイテム
+          </UButton>
+          <UButton
+            :color="form.itemType === 'folder' ? 'primary' : 'gray'"
+            @click="form.itemType = 'folder'"
+          >
+            フォルダ
+          </UButton>
+        </UButtonGroup>
       </UFormGroup>
 
       <UFormGroup label="カテゴリ">
@@ -103,7 +122,7 @@
         <UTextarea v-model="form.description" placeholder="説明（任意）" :rows="2" />
       </UFormGroup>
 
-      <UFormGroup label="URL">
+      <UFormGroup v-if="form.itemType !== 'folder'" label="URL">
         <UInput v-model="form.url" placeholder="https://..." type="url" />
       </UFormGroup>
 
@@ -154,6 +173,7 @@ const emit = defineEmits<{
     imageUrl: string
     url: string
     quantity: number
+    itemType: string
   }]
   cancel: []
 }>()
@@ -169,6 +189,11 @@ const ownerTypeOptions = [
   { value: 'personal', label: '個人' },
 ]
 
+const itemTypeOptions = [
+  { value: 'item', label: 'アイテム' },
+  { value: 'folder', label: 'フォルダ' },
+]
+
 const form = reactive({
   name: props.item?.name ?? '',
   ownerType: props.item?.ownerType ?? props.defaultOwnerType ?? 'org',
@@ -178,6 +203,7 @@ const form = reactive({
   imageUrl: props.item?.imageUrl ?? '',
   url: props.item?.url ?? '',
   quantity: props.item?.quantity ?? 1,
+  itemType: props.item?.itemType ?? 'item',
 })
 
 watch(() => props.item, (newItem) => {
@@ -191,6 +217,7 @@ watch(() => props.item, (newItem) => {
     form.imageUrl = newItem.imageUrl
     form.url = newItem.url ?? ''
     form.quantity = newItem.quantity
+    form.itemType = newItem.itemType || 'item'
   } else {
     form.name = ''
     form.ownerType = props.defaultOwnerType ?? 'org'
@@ -200,6 +227,7 @@ watch(() => props.item, (newItem) => {
     form.imageUrl = ''
     form.url = ''
     form.quantity = 1
+    form.itemType = 'item'
   }
 })
 
