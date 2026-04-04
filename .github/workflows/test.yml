@@ -23,6 +23,6 @@ jobs:
       pre_install_script: |
         mkdir -p rust-logi_ref/packages/logi-proto/dist
         echo '{"name":"@yhonda-ohishi-pub-dev/logi-proto","version":"0.0.0","type":"module","main":"./dist/index.js","types":"./dist/index.d.ts","exports":{".":{"import":"./dist/index.js","types":"./dist/index.d.ts"}}}' > rust-logi_ref/packages/logi-proto/package.json
-        echo 'export {}' > rust-logi_ref/packages/logi-proto/dist/index.js
-        echo 'export {}' > rust-logi_ref/packages/logi-proto/dist/index.d.ts
+        echo 'export const ItemsService = {}; export const FilesService = {};' > rust-logi_ref/packages/logi-proto/dist/index.js
+        echo 'export interface Item { [key: string]: any }; export const ItemsService: any; export const FilesService: any;' > rust-logi_ref/packages/logi-proto/dist/index.d.ts
     secrets: inherit

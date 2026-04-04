@@ -1,2 +1,2 @@
-export { useAuth, AuthToolbar } from '@yhonda-ohishi-pub-dev/auth-client'
-export type { AuthState } from '@yhonda-ohishi-pub-dev/auth-client'
+export { useAuth, AuthToolbar } from '@ippoan/auth-client'
+export type { AuthState } from '@ippoan/auth-client'

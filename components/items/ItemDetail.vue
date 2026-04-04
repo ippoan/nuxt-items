@@ -145,7 +145,7 @@
 
 <script setup lang="ts">
 import type { Item } from '@yhonda-ohishi-pub-dev/logi-proto'
-import { useAuth } from '@yhonda-ohishi-pub-dev/auth-client'
+import { useAuth } from '@ippoan/auth-client'
 
 const props = defineProps<{
   item: Item
