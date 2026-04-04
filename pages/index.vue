@@ -172,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Item } from '@yhonda-ohishi-pub-dev/logi-proto'
+import type { Item } from '~/types/item'
 import type { InitialProduct } from '~/components/items/ItemForm.vue'
 import { AuthToolbar, useAuth } from '@ippoan/auth-client'
 
