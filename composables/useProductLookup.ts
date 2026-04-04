@@ -125,12 +125,9 @@ export function useProductLookup() {
       }
       status.value = 'not_found'
       return null
-    } catch (e: any) {
-      if (e.name === 'AbortError') {
-        errorMessage.value = 'タイムアウトしました'
-      } else {
-        errorMessage.value = e.message || '不明なエラー'
-      }
+    } catch {
+      // outer catch に到達するのは AbortError のみ（inner catch が non-abort を吸収）
+      errorMessage.value = 'タイムアウトしました'
       status.value = 'error'
       return null
     } finally {
