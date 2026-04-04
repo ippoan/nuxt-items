@@ -20,6 +20,7 @@ jobs:
       install_command: 'npm install'
       use_auth_client_dev: true
       npm_scope: '@ippoan'
+      post_install_script: 'npx nuxt prepare'
       pre_install_script: |
         mkdir -p rust-logi_ref/packages/logi-proto/dist
         echo '{"name":"@yhonda-ohishi-pub-dev/logi-proto","version":"0.0.0","type":"module","main":"./dist/index.js","types":"./dist/index.d.ts","exports":{".":{"import":"./dist/index.js","types":"./dist/index.d.ts"}}}' > rust-logi_ref/packages/logi-proto/package.json
