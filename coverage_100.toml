@@ -1,0 +1,29 @@
+# 100% line coverage 達成ファイル登録簿
+# CI でリグレッションを検出
+
+[[files]]
+path = "composables/useFileUpload.ts"
+
+[[files]]
+path = "composables/useImageCache.ts"
+
+[[files]]
+path = "composables/useItems.ts"
+
+[[files]]
+path = "composables/useItemsSync.ts"
+
+[[files]]
+path = "composables/useNfc.ts"
+
+[[files]]
+path = "composables/useProductLookup.ts"
+
+[[files]]
+path = "server/api/amazon-lookup.ts"
+
+[[files]]
+path = "server/api/barcode-lookup.ts"
+
+[[files]]
+path = "server/middleware/auth.ts"
