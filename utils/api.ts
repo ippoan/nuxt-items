@@ -8,6 +8,34 @@ export function initItemsApi(base: string, tokenGetter?: () => string | null) {
   getToken = tokenGetter
 }
 
+/** snake_case → camelCase 変換 */
+function toCamel(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(toCamel)
+  if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [
+        k.replace(/_([a-z])/g, (_, c) => c.toUpperCase()),
+        toCamel(v),
+      ]),
+    )
+  }
+  return obj
+}
+
+/** camelCase → snake_case 変換 (リクエスト送信用) */
+function toSnake(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(toSnake)
+  if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [
+        k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`),
+        toSnake(v),
+      ]),
+    )
+  }
+  return obj
+}
+
 async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     ...(opts.headers as Record<string, string> || {}),
@@ -22,7 +50,8 @@ async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
     throw new Error(`API エラー (${res.status}): ${text}`)
   }
   if (res.status === 204) return undefined as T
-  return res.json() as Promise<T>
+  const data = await res.json()
+  return toCamel(data) as T
 }
 
 export async function listItems(parentId?: string, ownerType = 'org'): Promise<Item[]> {
@@ -36,11 +65,11 @@ export async function getItem(id: string): Promise<Item> {
 }
 
 export async function createItem(data: CreateItem): Promise<Item> {
-  return apiFetch<Item>('/api/items', { method: 'POST', body: JSON.stringify(data) })
+  return apiFetch<Item>('/api/items', { method: 'POST', body: JSON.stringify(toSnake(data)) })
 }
 
 export async function updateItem(id: string, data: UpdateItem): Promise<Item> {
-  return apiFetch<Item>(`/api/items/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  return apiFetch<Item>(`/api/items/${id}`, { method: 'PUT', body: JSON.stringify(toSnake(data)) })
 }
 
 export async function deleteItem(id: string): Promise<void> {
@@ -55,7 +84,7 @@ export async function changeOwnership(id: string, ownerType: string): Promise<It
   return apiFetch<Item>(`/api/items/${id}/ownership`, { method: 'POST', body: JSON.stringify({ owner_type: ownerType }) })
 }
 
-export interface ConvertResult { item: Item; children_moved: number }
+export interface ConvertResult { item: Item; childrenMoved: number }
 
 export async function convertItemType(id: string, itemType: string): Promise<ConvertResult> {
   return apiFetch<ConvertResult>(`/api/items/${id}/convert`, { method: 'POST', body: JSON.stringify({ item_type: itemType }) })

@@ -47,16 +47,16 @@ export function useItems() {
     const effectiveParentId = data.parentId ?? currentParentId.value
     const effectiveOwnerType = data.ownerType ?? (ownerType.value || 'org')
     await api.createItem({
-      parent_id: effectiveParentId || null,
-      owner_type: effectiveOwnerType,
+      parentId: effectiveParentId || null,
+      ownerType: effectiveOwnerType,
       name: data.name,
       barcode: data.barcode ?? '',
       category: data.category ?? '',
       description: data.description ?? '',
-      image_url: data.imageUrl ?? '',
+      imageUrl: data.imageUrl ?? '',
       url: data.url ?? '',
       quantity: data.quantity ?? 1,
-      item_type: data.itemType ?? 'item',
+      itemType: data.itemType ?? 'item',
     })
     await fetchItems()
     sync.notifyChange('create', effectiveParentId, effectiveOwnerType)
@@ -76,7 +76,7 @@ export function useItems() {
       barcode: data.barcode ?? '',
       category: data.category ?? '',
       description: data.description ?? '',
-      image_url: data.imageUrl ?? '',
+      imageUrl: data.imageUrl ?? '',
       url: data.url ?? '',
       quantity: data.quantity ?? 1,
     })
@@ -106,7 +106,7 @@ export function useItems() {
     const response = await api.convertItemType(id, newItemType)
     await fetchItems()
     sync.notifyChange('update', currentParentId.value, ownerType.value)
-    return { childrenMoved: response.children_moved }
+    return { childrenMoved: response.childrenMoved }
   }
 
   async function searchByBarcode(barcode: string): Promise<Item[]> {

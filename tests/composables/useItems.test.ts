@@ -81,16 +81,16 @@ describe('useItems', () => {
       await createItem({ name: 'New Item' })
 
       expect(mockApi.createItem).toHaveBeenCalledWith({
-        parent_id: null,
-        owner_type: 'org',
+        parentId: null,
+        ownerType: 'org',
         name: 'New Item',
         barcode: '',
         category: '',
         description: '',
-        image_url: '',
+        imageUrl: '',
         url: '',
         quantity: 1,
-        item_type: 'item',
+        itemType: 'item',
       })
       expect(mockSync.notifyChange).toHaveBeenCalledWith('create', '', 'org')
     })
@@ -113,16 +113,16 @@ describe('useItems', () => {
       })
 
       expect(mockApi.createItem).toHaveBeenCalledWith({
-        parent_id: 'p1',
-        owner_type: 'personal',
+        parentId: 'p1',
+        ownerType: 'personal',
         name: 'Full Item',
         barcode: '123',
         category: 'Cat',
         description: 'Desc',
-        image_url: 'img.jpg',
+        imageUrl: 'img.jpg',
         url: 'https://example.com',
         quantity: 5,
-        item_type: 'box',
+        itemType: 'box',
       })
       expect(mockSync.notifyChange).toHaveBeenCalledWith('create', 'p1', 'personal')
     })
@@ -138,8 +138,8 @@ describe('useItems', () => {
 
       expect(mockApi.createItem).toHaveBeenCalledWith(
         expect.objectContaining({
-          parent_id: 'folder-1',
-          owner_type: 'org',
+          parentId: 'folder-1',
+          ownerType: 'org',
         }),
       )
     })
@@ -153,7 +153,7 @@ describe('useItems', () => {
       await createItem({ name: 'Item' })
 
       expect(mockApi.createItem).toHaveBeenCalledWith(
-        expect.objectContaining({ owner_type: 'org' }),
+        expect.objectContaining({ ownerType: 'org' }),
       )
     })
   })
@@ -178,7 +178,7 @@ describe('useItems', () => {
         barcode: '456',
         category: 'Cat2',
         description: 'NewDesc',
-        image_url: 'new.jpg',
+        imageUrl: 'new.jpg',
         url: 'https://new.com',
         quantity: 3,
       })
@@ -196,7 +196,7 @@ describe('useItems', () => {
         barcode: '',
         category: '',
         description: '',
-        image_url: '',
+        imageUrl: '',
         url: '',
         quantity: 1,
       })
@@ -255,7 +255,7 @@ describe('useItems', () => {
 
   describe('convertItemType', () => {
     it('converts item type and returns childrenMoved', async () => {
-      mockApi.convertItemType.mockResolvedValue({ item: { id: '1', item_type: 'box' }, children_moved: 3 })
+      mockApi.convertItemType.mockResolvedValue({ item: { id: '1', itemType: 'box' }, childrenMoved: 3 })
 
       const { convertItemType } = useItems()
       const result = await convertItemType('id-1', 'box')
