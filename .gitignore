@@ -20,3 +20,4 @@ Thumbs.db
 
 # Symlinks (reference repos)
 rust-logi_ref
+coverage/

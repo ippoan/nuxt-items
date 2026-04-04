@@ -174,7 +174,7 @@
 <script setup lang="ts">
 import type { Item } from '@yhonda-ohishi-pub-dev/logi-proto'
 import type { InitialProduct } from '~/components/items/ItemForm.vue'
-import { AuthToolbar, useAuth } from '@yhonda-ohishi-pub-dev/auth-client'
+import { AuthToolbar, useAuth } from '@ippoan/auth-client'
 
 const { setOwnerType: setAuthOwnerType } = useAuth()
 const isMobile = useMediaQuery('(max-width: 640px)')
