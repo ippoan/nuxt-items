@@ -20,5 +20,12 @@ pattern = "items.mtamaramu.com"
 custom_domain = true
 
 [vars]
-NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth.mtamaramu.com"
+NUXT_PUBLIC_AUTH_WORKER_URL = "https://alc-api.ippoan.org"
+NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"
+
+[env.staging]
+name = "nuxt-items-staging"
+
+[env.staging.vars]
+NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth-worker-staging.m-tama-ramu.workers.dev"
 NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"

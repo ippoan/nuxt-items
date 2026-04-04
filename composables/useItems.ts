@@ -48,6 +48,7 @@ export function useItems() {
     imageUrl?: string
     url?: string
     quantity?: number
+    itemType?: string
   }) {
     const effectiveParentId = data.parentId ?? currentParentId.value
     const effectiveOwnerType = data.ownerType ?? (ownerType.value || 'org')
@@ -61,6 +62,7 @@ export function useItems() {
       imageUrl: data.imageUrl ?? '',
       url: data.url ?? '',
       quantity: data.quantity ?? 1,
+      itemType: data.itemType ?? 'item',
     })
     await fetchItems()
     sync.notifyChange('create', effectiveParentId, effectiveOwnerType)
@@ -107,6 +109,13 @@ export function useItems() {
     console.log('[changeOwnership] RPC success, fetching items')
     await fetchItems()
     sync.notifyChange('ownership', currentParentId.value, ownerType.value)
+  }
+
+  async function convertItemType(id: string, newItemType: string) {
+    const response = await $grpc.items.convertItemType({ id, newItemType })
+    await fetchItems()
+    sync.notifyChange('update', currentParentId.value, ownerType.value)
+    return response
   }
 
   async function searchByBarcode(barcode: string): Promise<Item[]> {
@@ -179,6 +188,7 @@ export function useItems() {
     deleteItem,
     moveItem,
     changeOwnership,
+    convertItemType,
     searchByBarcode,
     getItem,
     navigateToChild,

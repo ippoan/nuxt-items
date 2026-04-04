@@ -49,6 +49,25 @@
             </dd>
           </div>
           <div>
+            <dt class="text-xs text-gray-500">種別</dt>
+            <dd class="text-sm">
+              <UButtonGroup size="xs">
+                <UButton
+                  :color="item.itemType === 'folder' ? 'primary' : 'gray'"
+                  @click="onConvertType('folder')"
+                >
+                  フォルダ
+                </UButton>
+                <UButton
+                  :color="item.itemType === 'item' ? 'primary' : 'gray'"
+                  @click="onConvertType('item')"
+                >
+                  アイテム
+                </UButton>
+              </UButtonGroup>
+            </dd>
+          </div>
+          <div>
             <dt class="text-xs text-gray-500">数量</dt>
             <dd class="text-sm">{{ item.quantity }}</dd>
           </div>
@@ -70,6 +89,33 @@
         </div>
       </template>
     </UCard>
+
+    <!-- 種別変更確認 -->
+    <UModal v-model="showConvertConfirm">
+      <UCard>
+        <template #header>
+          <h3 class="text-lg font-semibold">種別変更</h3>
+        </template>
+        <p>
+          「{{ item.name }}」を
+          <strong>{{ pendingItemType === 'folder' ? 'フォルダ' : 'アイテム' }}</strong>
+          に変換しますか？
+        </p>
+        <p v-if="item.itemType === 'folder' && pendingItemType === 'item'" class="text-sm text-amber-600 mt-2">
+          フォルダ内のアイテムは親フォルダに移動されます。
+        </p>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="gray" variant="ghost" @click="showConvertConfirm = false">
+              キャンセル
+            </UButton>
+            <UButton color="primary" @click="confirmConvertType">
+              変換
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
 
     <!-- 所有権変更確認 -->
     <UModal v-model="showOwnershipConfirm">
@@ -109,6 +155,7 @@ const emit = defineEmits<{
   close: []
   edit: [item: Item]
   'change-ownership': [item: Item, newOwnerType: string]
+  'convert-type': [item: Item, newItemType: string]
 }>()
 
 const { orgSlug } = useAuth()
@@ -116,6 +163,21 @@ const orgLabel = computed(() => orgSlug.value || '組織')
 
 const { getImageUrl } = useImageCache()
 const imageSrc = ref<string | null>(null)
+
+// 種別変更確認
+const showConvertConfirm = ref(false)
+const pendingItemType = ref('')
+
+function onConvertType(type: string) {
+  if (type === props.item.itemType) return
+  pendingItemType.value = type
+  showConvertConfirm.value = true
+}
+
+function confirmConvertType() {
+  showConvertConfirm.value = false
+  emit('convert-type', props.item, pendingItemType.value)
+}
 
 // 所有権変更確認
 const showOwnershipConfirm = ref(false)
