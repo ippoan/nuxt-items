@@ -17,7 +17,7 @@
     "@nuxt/ui": "2.21.0",
     "@vite-pwa/nuxt": "0.10.6",
     "@vueuse/nuxt": "12.5.0",
-    "@ippoan/auth-client": "^0.1.31",
+    "@ippoan/auth-client": "^0.1.17",
     "@yhonda-ohishi-pub-dev/logi-proto": "file:rust-logi_ref/packages/logi-proto",
     "html5-qrcode": "^2.3.8",
     "nuxt": "^3.15.4",
