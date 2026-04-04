@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useAuth } from '@yhonda-ohishi-pub-dev/auth-client'
+import { useAuth } from '@ippoan/auth-client'
 
 defineProps<{
   modelValue: string

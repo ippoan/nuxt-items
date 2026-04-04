@@ -1,5 +1,6 @@
-import type { Item } from '@yhonda-ohishi-pub-dev/logi-proto'
+import type { Item } from '~/types/item'
 import type { SyncMessage } from './useItemsSync'
+import * as api from '~/utils/api'
 
 export type OwnerType = 'org' | 'personal' | ''
 
@@ -9,7 +10,6 @@ export interface BreadcrumbItem {
 }
 
 export function useItems() {
-  const { $grpc } = useNuxtApp()
   const sync = useItemsSync()
 
   const items = ref<Item[]>([])
@@ -25,12 +25,7 @@ export function useItems() {
     status.value = 'pending'
     error.value = ''
     try {
-      const response = await $grpc.items.listItems({
-        parentId: currentParentId.value,
-        ownerType: ownerType.value,
-        category: '',
-      })
-      items.value = response.items
+      items.value = await api.listItems(currentParentId.value || undefined, ownerType.value || 'org')
       status.value = 'success'
     } catch (e: any) {
       error.value = e.message || 'エラーが発生しました'
@@ -52,17 +47,17 @@ export function useItems() {
   }) {
     const effectiveParentId = data.parentId ?? currentParentId.value
     const effectiveOwnerType = data.ownerType ?? (ownerType.value || 'org')
-    await $grpc.items.createItem({
-      parentId: effectiveParentId,
-      ownerType: effectiveOwnerType,
+    await api.createItem({
+      parent_id: effectiveParentId || null,
+      owner_type: effectiveOwnerType,
       name: data.name,
       barcode: data.barcode ?? '',
       category: data.category ?? '',
       description: data.description ?? '',
-      imageUrl: data.imageUrl ?? '',
+      image_url: data.imageUrl ?? '',
       url: data.url ?? '',
       quantity: data.quantity ?? 1,
-      itemType: data.itemType ?? 'item',
+      item_type: data.itemType ?? 'item',
     })
     await fetchItems()
     sync.notifyChange('create', effectiveParentId, effectiveOwnerType)
@@ -77,13 +72,12 @@ export function useItems() {
     url?: string
     quantity?: number
   }) {
-    await $grpc.items.updateItem({
-      id,
+    await api.updateItem(id, {
       name: data.name,
       barcode: data.barcode ?? '',
       category: data.category ?? '',
       description: data.description ?? '',
-      imageUrl: data.imageUrl ?? '',
+      image_url: data.imageUrl ?? '',
       url: data.url ?? '',
       quantity: data.quantity ?? 1,
     })
@@ -92,41 +86,37 @@ export function useItems() {
   }
 
   async function deleteItem(id: string) {
-    await $grpc.items.deleteItem({ id })
+    await api.deleteItem(id)
     items.value = items.value.filter(item => item.id !== id)
     sync.notifyChange('delete', currentParentId.value, ownerType.value)
   }
 
   async function moveItem(id: string, newParentId: string) {
-    await $grpc.items.moveItem({ id, newParentId })
+    await api.moveItem(id, newParentId || null)
     await fetchItems()
     sync.notifyChange('move', currentParentId.value, ownerType.value)
   }
 
   async function changeOwnership(id: string, newOwnerType: string) {
-    console.log('[changeOwnership] calling RPC:', { id, newOwnerType })
-    await $grpc.items.changeItemOwnership({ id, newOwnerType })
-    console.log('[changeOwnership] RPC success, fetching items')
+    await api.changeOwnership(id, newOwnerType)
     await fetchItems()
     sync.notifyChange('ownership', currentParentId.value, ownerType.value)
   }
 
   async function convertItemType(id: string, newItemType: string) {
-    const response = await $grpc.items.convertItemType({ id, newItemType })
+    const response = await api.convertItemType(id, newItemType)
     await fetchItems()
     sync.notifyChange('update', currentParentId.value, ownerType.value)
-    return response
+    return { childrenMoved: response.children_moved }
   }
 
   async function searchByBarcode(barcode: string): Promise<Item[]> {
-    const response = await $grpc.items.searchByBarcode({ barcode })
-    return response.items
+    return api.searchByBarcode(barcode)
   }
 
   async function getItem(id: string): Promise<Item | null> {
     try {
-      const response = await $grpc.items.getItem({ id })
-      return response.item ?? null
+      return await api.getItem(id)
     } catch {
       return null
     }
@@ -168,7 +158,6 @@ export function useItems() {
       if (msg.parentId === currentParentId.value && msg.ownerType === ownerType.value) {
         fetchItems()
       }
-      // 別フォルダの変更は現時点では無視（ナビゲーション時に常にfetchするため）
     })
 
     sync.start()

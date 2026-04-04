@@ -23,11 +23,7 @@ export default defineNuxtConfig({
 
   build: {
     transpile: [
-      '@yhonda-ohishi-pub-dev/logi-proto',
-      '@yhonda-ohishi-pub-dev/auth-client',
-      '@bufbuild/protobuf',
-      '@connectrpc/connect',
-      '@connectrpc/connect-web',
+      '@ippoan/auth-client',
     ],
   },
 

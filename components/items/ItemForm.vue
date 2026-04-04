@@ -145,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Item } from '@yhonda-ohishi-pub-dev/logi-proto'
+import type { Item } from '~/types/item'
 
 export interface InitialProduct {
   loading: boolean
