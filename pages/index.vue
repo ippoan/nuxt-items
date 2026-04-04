@@ -20,7 +20,7 @@
     <!-- パンくずリスト -->
     <div class="mb-3">
       <ItemsItemBreadcrumbs
-        :breadcrumbs="breadcrumbs"
+        :breadcrumbs="[...breadcrumbs]"
         @navigate="navigateToBreadcrumb"
         @navigate-root="navigateToRoot"
         @drop="onBreadcrumbDrop"
@@ -229,7 +229,7 @@ const pendingBarcode = ref('')
 const pendingAmazonProduct = ref<InitialProduct | null>(null)
 
 const displayItems = computed(() =>
-  searchMode.value ? searchResults.value : items.value
+  [...(searchMode.value ? searchResults.value : items.value)]
 )
 
 // 初回読み込み + WebSocket同期開始 + ?nfc= パラメータ処理
