@@ -16,7 +16,8 @@ jobs:
   ci:
     uses: ippoan/ci-workflows/.github/workflows/frontend-ci.yml@main
     with:
-      has_tests: false
+      has_tests: true
+      test_command: 'npx vitest run --coverage'
       install_command: 'npm install'
       use_auth_client_dev: true
       npm_scope: '@ippoan'
