@@ -1,14 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockGrpc = {
-  items: {},
-  files: {
-    createFile: vi.fn(),
-    downloadFile: vi.fn(),
-  },
-}
-
-vi.stubGlobal('useNuxtApp', () => ({ $grpc: mockGrpc }))
+const mockUploadFile = vi.fn()
+const mockDownloadFile = vi.fn()
+vi.mock('~/utils/api', () => ({
+  uploadFile: mockUploadFile,
+  downloadFile: mockDownloadFile,
+}))
 
 const { useFileUpload } = await import('../../composables/useFileUpload')
 
@@ -20,7 +17,6 @@ function setupImageMock(opts: { width: number; height: number; shouldError?: boo
     toBlob: vi.fn((cb: any) => cb(new Blob(['data']))),
   }
   vi.spyOn(document, 'createElement').mockReturnValue(mockCanvas as any)
-  vi.spyOn(Blob.prototype, 'arrayBuffer').mockResolvedValue(new ArrayBuffer(4))
 
   vi.stubGlobal('URL', {
     ...globalThis.URL,
@@ -51,10 +47,10 @@ beforeEach(() => {
 })
 
 describe('useFileUpload', () => {
-  describe('resizeImage', () => {
+  describe('resizeImage (via uploadImage)', () => {
     it('resizes image when width > maxWidth', async () => {
       const mockCanvas = setupImageMock({ width: 2400, height: 1600 })
-      mockGrpc.files.createFile.mockResolvedValue({ file: { uuid: 'uuid-1' } })
+      mockUploadFile.mockResolvedValue({ id: 'uuid-1' })
 
       const { uploadImage } = useFileUpload()
       const uuid = await uploadImage(new File(['test'], 'photo.jpg'))
@@ -66,7 +62,7 @@ describe('useFileUpload', () => {
 
     it('does not resize when width <= maxWidth', async () => {
       const mockCanvas = setupImageMock({ width: 800, height: 600 })
-      mockGrpc.files.createFile.mockResolvedValue({ file: { uuid: 'uuid-2' } })
+      mockUploadFile.mockResolvedValue({ id: 'uuid-2' })
 
       const { uploadImage } = useFileUpload()
       await uploadImage(new File(['test'], 'small.jpg'))
@@ -89,60 +85,33 @@ describe('useFileUpload', () => {
       const { uploadImage } = useFileUpload()
       await expect(uploadImage(new File(['test'], 'null-blob.jpg'))).rejects.toThrow('リサイズに失敗しました')
     })
-
-    it('rejects when arrayBuffer fails', async () => {
-      setupImageMock({ width: 100, height: 100 })
-      vi.spyOn(Blob.prototype, 'arrayBuffer').mockRejectedValue(new Error('ab fail'))
-
-      const { uploadImage } = useFileUpload()
-      await expect(uploadImage(new File(['test'], 'ab-fail.jpg'))).rejects.toThrow('ab fail')
-    })
   })
 
   describe('uploadImage', () => {
-    it('returns empty string when createFile returns no uuid', async () => {
+    it('returns empty string when uploadFile returns no id', async () => {
       setupImageMock({ width: 100, height: 100 })
-      mockGrpc.files.createFile.mockResolvedValue({})
+      mockUploadFile.mockResolvedValue({})
 
       const { uploadImage } = useFileUpload()
       const uuid = await uploadImage(new File(['test'], 'nofile.jpg'))
       expect(uuid).toBe('')
     })
 
-    it('uses file.name for filename', async () => {
+    it('calls uploadFile with file and resized blob', async () => {
       setupImageMock({ width: 100, height: 100 })
-      mockGrpc.files.createFile.mockResolvedValue({ file: { uuid: 'u' } })
+      mockUploadFile.mockResolvedValue({ id: 'u' })
 
       const { uploadImage } = useFileUpload()
-      await uploadImage(new File(['test'], 'myphoto.jpg'))
-
-      expect(mockGrpc.files.createFile).toHaveBeenCalledWith(
-        expect.objectContaining({ filename: 'myphoto.jpg' }),
-      )
-    })
-
-    it('uses fallback filename when file.name is empty', async () => {
-      setupImageMock({ width: 100, height: 100 })
-      mockGrpc.files.createFile.mockResolvedValue({ file: { uuid: 'u' } })
-
-      const { uploadImage } = useFileUpload()
-      const file = new File(['test'], '')
+      const file = new File(['test'], 'myphoto.jpg')
       await uploadImage(file)
 
-      expect(mockGrpc.files.createFile).toHaveBeenCalledWith(
-        expect.objectContaining({ filename: 'image.jpg' }),
-      )
+      expect(mockUploadFile).toHaveBeenCalledWith(file, expect.any(Blob))
     })
   })
 
   describe('downloadImageAsObjectUrl', () => {
     it('downloads and creates object URL', async () => {
-      mockGrpc.files.downloadFile.mockReturnValue({
-        [Symbol.asyncIterator]: async function* () {
-          yield { data: new Uint8Array([1, 2, 3]) }
-          yield { data: new Uint8Array([4, 5, 6]) }
-        },
-      })
+      mockDownloadFile.mockResolvedValue(new Blob([new Uint8Array([1, 2, 3])]))
       vi.stubGlobal('URL', {
         ...globalThis.URL,
         createObjectURL: vi.fn(() => 'blob:result'),
@@ -154,21 +123,15 @@ describe('useFileUpload', () => {
       expect(url).toBe('blob:result')
     })
 
-    it('returns null when no chunks received', async () => {
-      mockGrpc.files.downloadFile.mockReturnValue({
-        [Symbol.asyncIterator]: async function* () {},
-      })
+    it('returns null when blob is empty', async () => {
+      mockDownloadFile.mockResolvedValue(new Blob([]))
 
       const { downloadImageAsObjectUrl } = useFileUpload()
       expect(await downloadImageAsObjectUrl('empty')).toBeNull()
     })
 
     it('returns null on error', async () => {
-      mockGrpc.files.downloadFile.mockReturnValue({
-        [Symbol.asyncIterator]: async function* () {
-          throw new Error('fail')
-        },
-      })
+      mockDownloadFile.mockRejectedValue(new Error('fail'))
 
       const { downloadImageAsObjectUrl } = useFileUpload()
       expect(await downloadImageAsObjectUrl('bad')).toBeNull()

@@ -11,10 +11,6 @@ command = "npm run build"
 enabled = true
 head_sampling_rate = 1
 
-[[services]]
-binding = "GRPC_PROXY_SERVICE"
-service = "cf-grpc-proxy"
-
 [[routes]]
 pattern = "items.mtamaramu.com"
 custom_domain = true

@@ -17,38 +17,32 @@ const mockSync = {
 
 vi.stubGlobal('useItemsSync', () => mockSync)
 
-const mockGrpc = {
-  items: {
-    listItems: vi.fn(),
-    createItem: vi.fn(),
-    updateItem: vi.fn(),
-    deleteItem: vi.fn(),
-    moveItem: vi.fn(),
-    changeItemOwnership: vi.fn(),
-    convertItemType: vi.fn(),
-    searchByBarcode: vi.fn(),
-    getItem: vi.fn(),
-  },
-  files: {
-    createFile: vi.fn(),
-    downloadFile: vi.fn(),
-  },
+// Mock api module
+const mockApi = {
+  listItems: vi.fn(),
+  getItem: vi.fn(),
+  createItem: vi.fn(),
+  updateItem: vi.fn(),
+  deleteItem: vi.fn(),
+  moveItem: vi.fn(),
+  changeOwnership: vi.fn(),
+  convertItemType: vi.fn(),
+  searchByBarcode: vi.fn(),
 }
-
-vi.stubGlobal('useNuxtApp', () => ({ $grpc: mockGrpc }))
+vi.mock('~/utils/api', () => mockApi)
 
 const { useItems } = await import('../../composables/useItems')
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockGrpc.items.listItems.mockResolvedValue({ items: [] })
+  mockApi.listItems.mockResolvedValue([])
 })
 
 describe('useItems', () => {
   describe('fetchItems', () => {
     it('fetches items and sets success status', async () => {
       const mockItems = [{ id: '1', name: 'Item 1' }, { id: '2', name: 'Item 2' }]
-      mockGrpc.items.listItems.mockResolvedValue({ items: mockItems })
+      mockApi.listItems.mockResolvedValue(mockItems)
 
       const { fetchItems, items, status, error } = useItems()
       await fetchItems()
@@ -56,15 +50,11 @@ describe('useItems', () => {
       expect(status.value).toBe('success')
       expect(items.value).toEqual(mockItems)
       expect(error.value).toBe('')
-      expect(mockGrpc.items.listItems).toHaveBeenCalledWith({
-        parentId: '',
-        ownerType: 'org',
-        category: '',
-      })
+      expect(mockApi.listItems).toHaveBeenCalledWith(undefined, 'org')
     })
 
     it('handles error on fetchItems', async () => {
-      mockGrpc.items.listItems.mockRejectedValue(new Error('Network error'))
+      mockApi.listItems.mockRejectedValue(new Error('Network error'))
 
       const { fetchItems, status, error } = useItems()
       await fetchItems()
@@ -74,7 +64,7 @@ describe('useItems', () => {
     })
 
     it('handles error with empty message', async () => {
-      mockGrpc.items.listItems.mockRejectedValue(new Error(''))
+      mockApi.listItems.mockRejectedValue(new Error(''))
 
       const { fetchItems, error } = useItems()
       await fetchItems()
@@ -85,28 +75,28 @@ describe('useItems', () => {
 
   describe('createItem', () => {
     it('creates item with defaults', async () => {
-      mockGrpc.items.createItem.mockResolvedValue({})
+      mockApi.createItem.mockResolvedValue({})
 
       const { createItem } = useItems()
       await createItem({ name: 'New Item' })
 
-      expect(mockGrpc.items.createItem).toHaveBeenCalledWith({
-        parentId: '',
-        ownerType: 'org',
+      expect(mockApi.createItem).toHaveBeenCalledWith({
+        parent_id: null,
+        owner_type: 'org',
         name: 'New Item',
         barcode: '',
         category: '',
         description: '',
-        imageUrl: '',
+        image_url: '',
         url: '',
         quantity: 1,
-        itemType: 'item',
+        item_type: 'item',
       })
       expect(mockSync.notifyChange).toHaveBeenCalledWith('create', '', 'org')
     })
 
     it('creates item with all fields', async () => {
-      mockGrpc.items.createItem.mockResolvedValue({})
+      mockApi.createItem.mockResolvedValue({})
 
       const { createItem } = useItems()
       await createItem({
@@ -122,23 +112,23 @@ describe('useItems', () => {
         itemType: 'box',
       })
 
-      expect(mockGrpc.items.createItem).toHaveBeenCalledWith({
-        parentId: 'p1',
-        ownerType: 'personal',
+      expect(mockApi.createItem).toHaveBeenCalledWith({
+        parent_id: 'p1',
+        owner_type: 'personal',
         name: 'Full Item',
         barcode: '123',
         category: 'Cat',
         description: 'Desc',
-        imageUrl: 'img.jpg',
+        image_url: 'img.jpg',
         url: 'https://example.com',
         quantity: 5,
-        itemType: 'box',
+        item_type: 'box',
       })
       expect(mockSync.notifyChange).toHaveBeenCalledWith('create', 'p1', 'personal')
     })
 
     it('uses currentParentId/ownerType as fallback when not provided', async () => {
-      mockGrpc.items.createItem.mockResolvedValue({})
+      mockApi.createItem.mockResolvedValue({})
 
       const { createItem, navigateToChild } = useItems()
       // Navigate to set currentParentId
@@ -146,31 +136,31 @@ describe('useItems', () => {
 
       await createItem({ name: 'Sub Item' })
 
-      expect(mockGrpc.items.createItem).toHaveBeenCalledWith(
+      expect(mockApi.createItem).toHaveBeenCalledWith(
         expect.objectContaining({
-          parentId: 'folder-1',
-          ownerType: 'org',
+          parent_id: 'folder-1',
+          owner_type: 'org',
         }),
       )
     })
 
     it('uses empty ownerType fallback to "org"', async () => {
-      mockGrpc.items.createItem.mockResolvedValue({})
+      mockApi.createItem.mockResolvedValue({})
 
       const { createItem, setOwnerType } = useItems()
       // ownerType is '' => falls back to 'org'
       setOwnerType('')
       await createItem({ name: 'Item' })
 
-      expect(mockGrpc.items.createItem).toHaveBeenCalledWith(
-        expect.objectContaining({ ownerType: 'org' }),
+      expect(mockApi.createItem).toHaveBeenCalledWith(
+        expect.objectContaining({ owner_type: 'org' }),
       )
     })
   })
 
   describe('updateItem', () => {
     it('updates item with all fields', async () => {
-      mockGrpc.items.updateItem.mockResolvedValue({})
+      mockApi.updateItem.mockResolvedValue({})
 
       const { updateItem } = useItems()
       await updateItem('id-1', {
@@ -183,13 +173,12 @@ describe('useItems', () => {
         quantity: 3,
       })
 
-      expect(mockGrpc.items.updateItem).toHaveBeenCalledWith({
-        id: 'id-1',
+      expect(mockApi.updateItem).toHaveBeenCalledWith('id-1', {
         name: 'Updated',
         barcode: '456',
         category: 'Cat2',
         description: 'NewDesc',
-        imageUrl: 'new.jpg',
+        image_url: 'new.jpg',
         url: 'https://new.com',
         quantity: 3,
       })
@@ -197,18 +186,17 @@ describe('useItems', () => {
     })
 
     it('updates item with defaults', async () => {
-      mockGrpc.items.updateItem.mockResolvedValue({})
+      mockApi.updateItem.mockResolvedValue({})
 
       const { updateItem } = useItems()
       await updateItem('id-1', { name: 'Just name' })
 
-      expect(mockGrpc.items.updateItem).toHaveBeenCalledWith({
-        id: 'id-1',
+      expect(mockApi.updateItem).toHaveBeenCalledWith('id-1', {
         name: 'Just name',
         barcode: '',
         category: '',
         description: '',
-        imageUrl: '',
+        image_url: '',
         url: '',
         quantity: 1,
       })
@@ -217,8 +205,8 @@ describe('useItems', () => {
 
   describe('deleteItem', () => {
     it('deletes item and removes from local list', async () => {
-      mockGrpc.items.deleteItem.mockResolvedValue({})
-      mockGrpc.items.listItems.mockResolvedValue({ items: [{ id: '1', name: 'A' }, { id: '2', name: 'B' }] })
+      mockApi.deleteItem.mockResolvedValue(undefined)
+      mockApi.listItems.mockResolvedValue([{ id: '1', name: 'A' }, { id: '2', name: 'B' }])
 
       const { fetchItems, deleteItem, items } = useItems()
       await fetchItems()
@@ -233,39 +221,47 @@ describe('useItems', () => {
   })
 
   describe('moveItem', () => {
-    it('moves item and refetches', async () => {
-      mockGrpc.items.moveItem.mockResolvedValue({})
+    it('moves item to new parent and refetches', async () => {
+      mockApi.moveItem.mockResolvedValue({})
 
       const { moveItem } = useItems()
       await moveItem('id-1', 'new-parent')
 
-      expect(mockGrpc.items.moveItem).toHaveBeenCalledWith({ id: 'id-1', newParentId: 'new-parent' })
+      expect(mockApi.moveItem).toHaveBeenCalledWith('id-1', 'new-parent')
       expect(mockSync.notifyChange).toHaveBeenCalledWith('move', '', 'org')
+    })
+
+    it('moves item to root (empty parentId becomes null)', async () => {
+      mockApi.moveItem.mockResolvedValue({})
+
+      const { moveItem } = useItems()
+      await moveItem('id-1', '')
+
+      expect(mockApi.moveItem).toHaveBeenCalledWith('id-1', null)
     })
   })
 
   describe('changeOwnership', () => {
     it('changes ownership and refetches', async () => {
-      mockGrpc.items.changeItemOwnership.mockResolvedValue({})
+      mockApi.changeOwnership.mockResolvedValue({})
 
       const { changeOwnership } = useItems()
       await changeOwnership('id-1', 'personal')
 
-      expect(mockGrpc.items.changeItemOwnership).toHaveBeenCalledWith({ id: 'id-1', newOwnerType: 'personal' })
+      expect(mockApi.changeOwnership).toHaveBeenCalledWith('id-1', 'personal')
       expect(mockSync.notifyChange).toHaveBeenCalledWith('ownership', '', 'org')
     })
   })
 
   describe('convertItemType', () => {
-    it('converts item type and returns response', async () => {
-      const mockResponse = { item: { id: '1', itemType: 'box' } }
-      mockGrpc.items.convertItemType.mockResolvedValue(mockResponse)
+    it('converts item type and returns childrenMoved', async () => {
+      mockApi.convertItemType.mockResolvedValue({ item: { id: '1', item_type: 'box' }, children_moved: 3 })
 
       const { convertItemType } = useItems()
       const result = await convertItemType('id-1', 'box')
 
-      expect(result).toEqual(mockResponse)
-      expect(mockGrpc.items.convertItemType).toHaveBeenCalledWith({ id: 'id-1', newItemType: 'box' })
+      expect(result).toEqual({ childrenMoved: 3 })
+      expect(mockApi.convertItemType).toHaveBeenCalledWith('id-1', 'box')
       expect(mockSync.notifyChange).toHaveBeenCalledWith('update', '', 'org')
     })
   })
@@ -273,20 +269,20 @@ describe('useItems', () => {
   describe('searchByBarcode', () => {
     it('searches and returns items', async () => {
       const mockItems = [{ id: '1', name: 'Found' }]
-      mockGrpc.items.searchByBarcode.mockResolvedValue({ items: mockItems })
+      mockApi.searchByBarcode.mockResolvedValue(mockItems)
 
       const { searchByBarcode } = useItems()
       const result = await searchByBarcode('4901234567890')
 
       expect(result).toEqual(mockItems)
-      expect(mockGrpc.items.searchByBarcode).toHaveBeenCalledWith({ barcode: '4901234567890' })
+      expect(mockApi.searchByBarcode).toHaveBeenCalledWith('4901234567890')
     })
   })
 
   describe('getItem', () => {
     it('returns item when found', async () => {
       const mockItem = { id: '1', name: 'Item' }
-      mockGrpc.items.getItem.mockResolvedValue({ item: mockItem })
+      mockApi.getItem.mockResolvedValue(mockItem)
 
       const { getItem } = useItems()
       const result = await getItem('1')
@@ -294,17 +290,8 @@ describe('useItems', () => {
       expect(result).toEqual(mockItem)
     })
 
-    it('returns null when item field is undefined', async () => {
-      mockGrpc.items.getItem.mockResolvedValue({})
-
-      const { getItem } = useItems()
-      const result = await getItem('nonexistent')
-
-      expect(result).toBeNull()
-    })
-
     it('returns null on error', async () => {
-      mockGrpc.items.getItem.mockRejectedValue(new Error('Not found'))
+      mockApi.getItem.mockRejectedValue(new Error('Not found'))
 
       const { getItem } = useItems()
       const result = await getItem('bad-id')
@@ -321,7 +308,7 @@ describe('useItems', () => {
 
       expect(breadcrumbs.value).toEqual([{ id: 'folder-1', name: 'Folder 1' }])
       expect(currentParentId.value).toBe('folder-1')
-      expect(mockGrpc.items.listItems).toHaveBeenCalled()
+      expect(mockApi.listItems).toHaveBeenCalled()
     })
 
     it('navigateToRoot resets breadcrumbs and fetches', async () => {
@@ -365,7 +352,7 @@ describe('useItems', () => {
       setOwnerType('personal')
 
       expect(ownerType.value).toBe('personal')
-      expect(mockGrpc.items.listItems).toHaveBeenCalled()
+      expect(mockApi.listItems).toHaveBeenCalled()
     })
   })
 
@@ -383,7 +370,7 @@ describe('useItems', () => {
       initSync()
 
       const syncCallback = mockSync.onSync.mock.calls[0][0]
-      mockGrpc.items.listItems.mockClear()
+      mockApi.listItems.mockClear()
 
       // Current state: parentId='', ownerType='org'
       syncCallback({
@@ -393,7 +380,7 @@ describe('useItems', () => {
         ownerType: 'org',
       })
 
-      expect(mockGrpc.items.listItems).toHaveBeenCalled()
+      expect(mockApi.listItems).toHaveBeenCalled()
     })
 
     it('sync callback ignores when parentId does not match', () => {
@@ -401,7 +388,7 @@ describe('useItems', () => {
       initSync()
 
       const syncCallback = mockSync.onSync.mock.calls[0][0]
-      mockGrpc.items.listItems.mockClear()
+      mockApi.listItems.mockClear()
 
       syncCallback({
         type: 'items_changed',
@@ -410,7 +397,7 @@ describe('useItems', () => {
         ownerType: 'org',
       })
 
-      expect(mockGrpc.items.listItems).not.toHaveBeenCalled()
+      expect(mockApi.listItems).not.toHaveBeenCalled()
     })
 
     it('sync callback ignores when ownerType does not match', () => {
@@ -418,7 +405,7 @@ describe('useItems', () => {
       initSync()
 
       const syncCallback = mockSync.onSync.mock.calls[0][0]
-      mockGrpc.items.listItems.mockClear()
+      mockApi.listItems.mockClear()
 
       syncCallback({
         type: 'items_changed',
@@ -427,7 +414,7 @@ describe('useItems', () => {
         ownerType: 'personal',
       })
 
-      expect(mockGrpc.items.listItems).not.toHaveBeenCalled()
+      expect(mockApi.listItems).not.toHaveBeenCalled()
     })
 
     it('sync callback ignores personal items from other users', () => {
@@ -435,7 +422,7 @@ describe('useItems', () => {
       initSync()
 
       const syncCallback = mockSync.onSync.mock.calls[0][0]
-      mockGrpc.items.listItems.mockClear()
+      mockApi.listItems.mockClear()
 
       syncCallback({
         type: 'items_changed',
@@ -445,7 +432,7 @@ describe('useItems', () => {
         userId: 'other-user',
       })
 
-      expect(mockGrpc.items.listItems).not.toHaveBeenCalled()
+      expect(mockApi.listItems).not.toHaveBeenCalled()
     })
 
     it('sync callback processes personal items from same user', () => {
@@ -453,7 +440,7 @@ describe('useItems', () => {
 
       const { initSync, setOwnerType } = useItems()
       setOwnerType('personal')
-      mockGrpc.items.listItems.mockClear()
+      mockApi.listItems.mockClear()
 
       initSync()
 
@@ -467,13 +454,13 @@ describe('useItems', () => {
         userId: 'user-123',
       })
 
-      expect(mockGrpc.items.listItems).toHaveBeenCalled()
+      expect(mockApi.listItems).toHaveBeenCalled()
     })
 
     it('sync callback processes personal items with no userId', () => {
       const { initSync, setOwnerType } = useItems()
       setOwnerType('personal')
-      mockGrpc.items.listItems.mockClear()
+      mockApi.listItems.mockClear()
 
       initSync()
 
@@ -487,7 +474,7 @@ describe('useItems', () => {
         ownerType: 'personal',
       })
 
-      expect(mockGrpc.items.listItems).toHaveBeenCalled()
+      expect(mockApi.listItems).toHaveBeenCalled()
     })
   })
 

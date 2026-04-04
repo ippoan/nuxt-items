@@ -204,7 +204,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Item } from '@yhonda-ohishi-pub-dev/logi-proto'
+import type { Item } from '~/types/item'
 
 const props = defineProps<{
   items: Item[]

@@ -1,14 +1,7 @@
-/**
- * 画像アップロード/ダウンロード Composable
- * FilesService 経由で GCS に保存
- */
-export function useFileUpload() {
-  const { $grpc } = useNuxtApp()
+import { uploadFile, downloadFile } from '~/utils/api'
 
-  /**
-   * 画像をクライアント側でリサイズしてJPEGに変換
-   */
-  async function resizeImage(file: File, maxWidth: number): Promise<ArrayBuffer> {
+export function useFileUpload() {
+  async function resizeImage(file: File, maxWidth: number): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
@@ -27,7 +20,7 @@ export function useFileUpload() {
         canvas.toBlob(
           (blob) => {
             if (!blob) return reject(new Error('リサイズに失敗しました'))
-            blob.arrayBuffer().then(resolve, reject)
+            resolve(blob)
           },
           'image/jpeg',
           0.85,
@@ -41,33 +34,16 @@ export function useFileUpload() {
     })
   }
 
-  /**
-   * 画像をアップロードしてファイルUUIDを返す
-   */
   async function uploadImage(file: File): Promise<string> {
     const resized = await resizeImage(file, 1200)
-    const content = new Uint8Array(resized)
-    const res: any = await $grpc.files.createFile({
-      filename: file.name || 'image.jpg',
-      type: 'image/jpeg',
-      content,
-    })
-    return (res?.file?.uuid as string) || ''
+    const result = await uploadFile(file, resized)
+    return result.id || ''
   }
 
-  /**
-   * ファイルUUIDからObject URLを取得（DownloadFile ストリーミング）
-   */
   async function downloadImageAsObjectUrl(uuid: string): Promise<string | null> {
     try {
-      const parts: Uint8Array<ArrayBuffer>[] = []
-      for await (const chunk of $grpc.files.downloadFile({ uuid })) {
-        const data = (chunk as any).data as Uint8Array
-        // コピーして ArrayBuffer 型を保証
-        parts.push(new Uint8Array(data))
-      }
-      if (parts.length === 0) return null
-      const blob = new Blob(parts, { type: 'image/jpeg' })
+      const blob = await downloadFile(uuid)
+      if (blob.size === 0) return null
       return URL.createObjectURL(blob)
     } catch {
       return null
