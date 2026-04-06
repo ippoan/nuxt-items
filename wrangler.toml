@@ -23,6 +23,10 @@ NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"
 [env.staging]
 name = "nuxt-items-staging"
 
+[[env.staging.routes]]
+pattern = "items-staging.ippoan.org"
+custom_domain = true
+
 [env.staging.vars]
-NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth-worker-staging.m-tama-ramu.workers.dev"
+NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth-staging.ippoan.org"
 NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"
