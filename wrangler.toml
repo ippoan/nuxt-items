@@ -19,6 +19,7 @@ custom_domain = true
 [vars]
 NUXT_PUBLIC_AUTH_WORKER_URL = "https://alc-api.ippoan.org"
 NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"
+NUXT_PUBLIC_API_BASE_URL = "https://alc-api.ippoan.org"
 
 [env.staging]
 name = "nuxt-items-staging"
@@ -30,3 +31,4 @@ custom_domain = true
 [env.staging.vars]
 NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth-staging.ippoan.org"
 NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"
+NUXT_PUBLIC_API_BASE_URL = "https://rust-alc-api-staging-566bls5vfq-an.a.run.app"
