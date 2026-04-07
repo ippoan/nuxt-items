@@ -13,7 +13,7 @@ enabled = true
 head_sampling_rate = 1
 
 [[routes]]
-pattern = "items.mtamaramu.com"
+pattern = "items.ippoan.org"
 custom_domain = true
 
 [vars]
