@@ -18,6 +18,7 @@ export default defineNuxtConfig({
     public: {
       authWorkerUrl: process.env.NUXT_PUBLIC_AUTH_WORKER_URL || '',
       syncUrl: process.env.NUXT_PUBLIC_SYNC_URL || '',
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '',
     },
   },
 
