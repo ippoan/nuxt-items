@@ -17,7 +17,7 @@ pattern = "items.ippoan.org"
 custom_domain = true
 
 [vars]
-NUXT_PUBLIC_AUTH_WORKER_URL = "https://alc-api.ippoan.org"
+NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth.ippoan.org"
 NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"
 NUXT_PUBLIC_API_BASE_URL = "https://alc-api.ippoan.org"
 
