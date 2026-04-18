@@ -1,0 +1,4 @@
+# dev-proxy metadata. Source of truth for https://<name>-dev.ippoan.org.
+name: nuxt-items
+port: 3012
+cmd: "PORT=$PORT HOST=0.0.0.0 npm run dev"
