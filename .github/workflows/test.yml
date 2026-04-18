@@ -23,3 +23,6 @@ jobs:
       npm_scope: '@ippoan'
       post_install_script: 'npx nuxt prepare'
     secrets: inherit
+
+  dev-proxy:
+    uses: ippoan/ci-workflows/.github/workflows/dev-proxy-validate.yml@main
