@@ -72,5 +72,5 @@ export default defineEventHandler((event) => {
   }
 
   // デフォルト: auth-worker ログインページ
-  return sendRedirect(event, `https://auth.mtamaramu.com/login?redirect_uri=${encodeURIComponent(redirectUri)}`)
+  return sendRedirect(event, `${authWorkerUrl}/login?redirect_uri=${encodeURIComponent(redirectUri)}`)
 })

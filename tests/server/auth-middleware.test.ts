@@ -192,7 +192,7 @@ describe.skipIf(isLive)('auth-middleware', () => {
 
     expect(mocks.sendRedirect).toHaveBeenCalledWith(
       event,
-      expect.stringContaining('https://auth.mtamaramu.com/login?redirect_uri='),
+      expect.stringContaining('https://auth.example.com/login?redirect_uri='),
     )
     const redirectUrl = mocks.sendRedirect.mock.calls[0][1]
     // lw_callback is inside the redirect_uri param (URL-encoded)
