@@ -1,4 +1,4 @@
-import { decodeJwtPayloadFromToken } from '@ippoan/auth-client'
+import { decodeJwtPayloadFromToken } from '@ippoan/auth-client/jwt'
 /**
  * マルチブラウザ同期 composable
  *
