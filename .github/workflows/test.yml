@@ -11,6 +11,7 @@ permissions:
   contents: write
   pull-requests: write
   packages: read
+  id-token: write       # frontend-ci 内蔵 secret-verify が要求 (ci-workflows#38)
 
 jobs:
   ci:
