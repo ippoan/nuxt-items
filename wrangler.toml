@@ -32,3 +32,7 @@ custom_domain = true
 NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth-staging.ippoan.org"
 NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"
 NUXT_PUBLIC_API_BASE_URL = "https://rust-alc-api-staging-566bls5vfq-an.a.run.app"
+
+[secrets]
+# secret-verify (ci-workflows) の監査要件: secret 不要を明示宣言 (#59 Wave 3)
+required = []
