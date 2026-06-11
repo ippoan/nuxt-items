@@ -1,3 +1,4 @@
+import { decodeJwtPayloadFromToken } from '@ippoan/auth-client/jwt'
 /**
  * マルチブラウザ同期 composable
  *
@@ -19,12 +20,9 @@ type SyncCallback = (msg: SyncMessage) => void
 
 /** JWT payload から sub (user_id) を取得 */
 function getUserIdFromToken(token: string): string | null {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    return payload.sub || null
-  } catch {
-    return null
-  }
+  // decodeJwtPayloadFromToken はマルチバイト安全 + parse 失敗時 {} を返す
+  const payload = decodeJwtPayloadFromToken(token)
+  return (payload.sub as string) || null
 }
 
 export function useItemsSync() {
