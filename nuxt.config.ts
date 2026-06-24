@@ -14,6 +14,15 @@ export default defineNuxtConfig({
     },
   },
 
+  typescript: {
+    tsConfig: {
+      // worker/ の DO entry / 本体は build 成果物 (../.output) と
+      // cloudflare:workers に依存し nuxi typecheck では解決できないため除外。
+      // pure な worker/auth-decision.ts は vitest が型/カバレッジを担保する。
+      exclude: ['../worker/index.ts', '../worker/items-sync-do.ts'],
+    },
+  },
+
   runtimeConfig: {
     public: {
       authWorkerUrl: process.env.NUXT_PUBLIC_AUTH_WORKER_URL || '',

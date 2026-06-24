@@ -2,8 +2,30 @@ name = "nuxt-items"
 account_id = "24b45709d060d957340180e995f0d373"
 compatibility_date = "2024-09-19"
 compatibility_flags = ["nodejs_compat"]
-main = "./.output/server/index.mjs"
+# Nitro 出力を包む custom worker entry。/ws/items/* を ItemsSyncDO に振り分け、
+# それ以外を Nitro に委譲し、Durable Object を同居 export する (worker/index.ts)。
+main = "./worker/index.ts"
 assets = { directory = "./.output/public/", binding = "ASSETS" }
+
+# items-sync (マルチデバイス同期) の WebSocket relay DO。cf-grpc-proxy から移設
+# (#290 で cross-tenant 穴を塞ぐため auth-worker introspect ハンドシェイクに変更)。
+[[durable_objects.bindings]]
+name = "ITEMS_SYNC"
+class_name = "ItemsSyncDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ItemsSyncDO"]
+
+# ItemsSyncDO が auth-worker POST /auth/introspect を叩くための共有 secret。
+# WS ハンドシェイク時に browser JWT を署名検証 + tenant/ACL 判定する。
+# auth-worker / carins / cc-relay と同じ CF Secrets Store entry を物理共有し、
+# GCP cloudsql-sv に同名 secret が SoT として存在 (frontend-ci の secret-verify
+# が test.yml の gcp_secret_verify_* 配線で検証する)。
+[[secrets_store_secrets]]
+binding = "INTERNAL_SHARED_SECRET"
+store_id = "bd7bc91a3e5f4111add4acf6cb4b8733"
+secret_name = "INTERNAL_SHARED_SECRET"
 
 [build]
 command = "npm run build"
@@ -18,11 +40,27 @@ custom_domain = true
 
 [vars]
 NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth.ippoan.org"
-NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"
+# 自オリジン (items.ippoan.org) の DO に WS 接続する。cf-grpc-proxy
+# (sync.mtamaramu.com) 脱依存。
+NUXT_PUBLIC_SYNC_URL = "wss://items.ippoan.org"
 NUXT_PUBLIC_API_BASE_URL = "https://alc-api.ippoan.org"
 
 [env.staging]
 name = "nuxt-items-staging"
+
+# named env は top-level binding を継承しないので DO / migration / secret を再宣言。
+[[env.staging.durable_objects.bindings]]
+name = "ITEMS_SYNC"
+class_name = "ItemsSyncDO"
+
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["ItemsSyncDO"]
+
+[[env.staging.secrets_store_secrets]]
+binding = "INTERNAL_SHARED_SECRET"
+store_id = "bd7bc91a3e5f4111add4acf6cb4b8733"
+secret_name = "INTERNAL_SHARED_SECRET"
 
 [[env.staging.routes]]
 pattern = "items-staging.ippoan.org"
@@ -30,9 +68,5 @@ custom_domain = true
 
 [env.staging.vars]
 NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth-staging.ippoan.org"
-NUXT_PUBLIC_SYNC_URL = "wss://sync.mtamaramu.com"
+NUXT_PUBLIC_SYNC_URL = "wss://items-staging.ippoan.org"
 NUXT_PUBLIC_API_BASE_URL = "https://rust-alc-api-staging-566bls5vfq-an.a.run.app"
-
-[secrets]
-# secret-verify (ci-workflows) の監査要件: secret 不要を明示宣言 (#59 Wave 3)
-required = []

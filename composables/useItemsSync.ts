@@ -5,7 +5,8 @@ import { decodeJwtPayloadFromToken } from '@ippoan/auth-client/jwt'
  * WebSocket (Durable Objects Hibernation API) + BroadcastChannel で
  * クロスデバイス/クロスタブのアイテム同期を実現
  *
- * 接続先: wss://sync.mtamaramu.com/ws/items/{orgId}?token=JWT
+ * 接続先: wss://items.ippoan.org/ws/items/{orgId}?token=JWT
+ * (自オリジンの ItemsSyncDO。旧 cf-grpc-proxy sync.mtamaramu.com から移設 #290)
  */
 
 export interface SyncMessage {
