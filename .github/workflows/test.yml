@@ -23,6 +23,12 @@ jobs:
       use_auth_client_dev: true
       npm_scope: '@ippoan'
       post_install_script: 'npx nuxt prepare'
+      # #290: wrangler.toml に INTERNAL_SHARED_SECRET の secrets_store_secrets
+      # binding を追加 (ItemsSyncDO の introspect ハンドシェイク用) したので
+      # secret-verify が必須化する。GCP cloudsql-sv の同名 secret を WIF で検証。
+      gcp_secret_verify_project: ${{ vars.GCP_PROJECT_ID_STAGING }}
+      gcp_secret_verify_provider: ${{ vars.GCP_WIF_PROVIDER }}
+      gcp_secret_verify_sa: ${{ vars.GCP_WIF_SERVICE_ACCOUNT_STAGING }}
       # 統合テスト: rust-alc-api コンテナ (docker-compose.test.yml の api) 相手に
       # /api/items を叩き、Release Wave の frontend↔backend compatibility edge を
       # 記録する。compat machinery が記録 SHA で API_IMAGE を上書きし、その image
