@@ -19,6 +19,13 @@ jobs:
     with:
       has_tests: true
       test_command: 'npx vitest run --coverage'
+      # 一時的 (Refs #290): app から ItemsSyncDO を外す deleted_classes migration を
+      # prod release で適用するため、release を versions upload ではなく
+      # `wrangler deploy` (= 100%) にする。migration は versions upload で
+      # 適用不可 (CF error 10211)。適用後の別 PR で migration 削除と同時に
+      # release_no_traffic を true (no-traffic) に戻す。staging deploy は元々
+      # `wrangler deploy` なので影響なし。
+      release_no_traffic: false
       install_command: 'npm install'
       use_auth_client_dev: true
       npm_scope: '@ippoan'

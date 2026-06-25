@@ -29,6 +29,18 @@ script_name = "nuxt-items-sync"
 [secrets]
 required = []
 
+# 一時的な transition migration (Refs #290)。app worker が #27 で定義していた
+# ItemsSyncDO class の登録が CF 上に残っており、external binding (script_name) へ
+# 切替えた新版を deploy すると CF error 10064 ("existing Durable Objects depend on
+# class ItemsSyncDO") で弾かれる。deleted_classes でその旧 class 登録を掃除する。
+# 旧 namespace の DO データは削除されるが、別 worker への切替で元々 fresh namespace に
+# なるため実質的なデータ損失は split に内在 (client は backend から再 sync)。
+# **適用後は別 PR でこの block を削除し、release を no-traffic versions upload に戻す**
+# (migration を含む version は versions upload 不可 = 10211 のため)。
+[[migrations]]
+tag = "v2"
+deleted_classes = ["ItemsSyncDO"]
+
 [build]
 command = "npm run build"
 
@@ -56,6 +68,14 @@ name = "nuxt-items-staging"
 name = "ITEMS_SYNC"
 class_name = "ItemsSyncDO"
 script_name = "nuxt-items-sync-staging"
+
+# 一時的な transition migration (top-level と同じ、Refs #290)。staging deploy は
+# CI が `wrangler deploy --env staging` で行う (versions upload ではない) ため、
+# この deleted_classes は merge 時の staging deploy で自動適用される。適用後は
+# 別 PR で削除する。
+[[env.staging.migrations]]
+tag = "v2"
+deleted_classes = ["ItemsSyncDO"]
 
 [[env.staging.routes]]
 pattern = "items-staging.ippoan.org"
