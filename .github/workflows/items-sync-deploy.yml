@@ -12,10 +12,18 @@ name: items-sync DO worker
 # upload}` で global 置換するため、ここを frontend-ci 経由にすると migration
 # deploy が壊れる。
 
+# pull_request: typecheck + test (coverage 100% gate) のみ実行し deploy は skip。
+# push(main/tag) / workflow_dispatch: 上記 gate に加えて deploy を実行。
+# これにより auth-decision.ts (cross-tenant 認可) の coverage 100% が PR 時点で
+# gate され、未達のまま main に入って deploy 直前に初めて落ちる事態を防ぐ。
 on:
   push:
     branches: [main]
     tags: ['v*']
+    paths:
+      - 'workers/items-sync/**'
+      - '.github/workflows/items-sync-deploy.yml'
+  pull_request:
     paths:
       - 'workers/items-sync/**'
       - '.github/workflows/items-sync-deploy.yml'
@@ -43,19 +51,22 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
-      - name: Test
-        run: npx vitest run
+      # vitest.config.ts の coverage.thresholds=100 で auth-decision.ts が
+      # 100% 未満なら non-zero exit → gate fail。
+      - name: Test (coverage 100% gate)
+        run: npx vitest run --coverage
 
       # tag push (v*) → prod、それ以外 (main push / workflow_dispatch) → staging。
       # DO migration があるため versions upload ではなく wrangler deploy を使う。
+      # pull_request では deploy しない (gate のみ)。
       - name: Deploy (staging)
-        if: github.ref_type != 'tag'
+        if: github.event_name != 'pull_request' && github.ref_type != 'tag'
         run: npx wrangler deploy --env staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
       - name: Deploy (production)
-        if: github.ref_type == 'tag'
+        if: github.event_name != 'pull_request' && github.ref_type == 'tag'
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
