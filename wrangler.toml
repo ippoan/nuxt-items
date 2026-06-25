@@ -32,10 +32,11 @@ service = "nuxt-items-sync"
 [secrets]
 required = []
 
-# top-level (prod) には migration を置かない。prod は versions upload のみで deploy
-# されてきた = ItemsSyncDO の v1 migration は prod には未適用 (class 登録が無い) なので
-# deleted_classes 不要。migration を置くと versions upload が 10211 で弾かれる。
-# (staging は #27/#28 の wrangler deploy で v1 適用済みなので env.staging 側で掃除する)
+# app は DO を定義しないので migration は一切持たない (prod/staging とも)。
+# prod は versions upload のみで deploy されてきた = ItemsSyncDO の v1 は未適用 = class
+# 登録が無いのでそのまま service binding 版を no-traffic deploy 可。migration を置くと
+# versions upload が 10211 で弾かれるので絶対に置かない。staging に残る旧 class 登録は
+# worker 再作成で消す (env.staging のコメント参照)。
 
 [build]
 command = "npm run build"
@@ -63,21 +64,13 @@ name = "nuxt-items-staging"
 binding = "ITEMS_SYNC"
 service = "nuxt-items-sync-staging"
 
-# staging app には #27/#28 の `wrangler deploy --env staging` で ItemsSyncDO の
-# class 登録 (v1 new_sqlite_classes) が残っている。service binding 化で class_name を
-# 参照する binding が消えたので、deleted_classes (v2) で旧 class 登録を安全に掃除できる
-# (DO binding が残っていると 10061 "without also removing the binding" で阻まれる)。
-# staging deploy は CI が `wrangler deploy --env staging` で行う (versions upload では
-# ない) ため migration を適用できる。v1 は履歴として残し、新規に v2 が適用される。
-# 旧 namespace の DO データは削除されるが、別 worker 切替で元々 fresh namespace になる
-# ため実質的損失は無い (client は backend から再 sync)。Refs #290。
-[[env.staging.migrations]]
-tag = "v1"
-new_sqlite_classes = ["ItemsSyncDO"]
-
-[[env.staging.migrations]]
-tag = "v2"
-deleted_classes = ["ItemsSyncDO"]
+# migration は持たない (app は DO を定義しない)。
+# 注意: 既存の nuxt-items-staging worker には #27/#28 の wrangler deploy で
+# ItemsSyncDO の class 登録が残っており、それを残したまま新版 (DO 非定義) を deploy
+# すると 10064、deleted_classes で消そうとすると binding 参照の catch-22 で 10061 に
+# なる。staging は disposable なので **worker を一度削除して fresh に作り直す** ことで
+# 旧 class 登録ごと消す (migration 不要)。`npx wrangler delete --env staging` 後に
+# 通常 deploy で再作成される (custom domain route も再付与される)。Refs #290。
 
 [[env.staging.routes]]
 pattern = "items-staging.ippoan.org"
