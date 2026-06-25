@@ -2,28 +2,41 @@ name = "nuxt-items"
 account_id = "24b45709d060d957340180e995f0d373"
 compatibility_date = "2024-09-19"
 compatibility_flags = ["nodejs_compat"]
-# Nitro 出力を包む custom worker entry。/ws/items/* を ItemsSyncDO に振り分け、
-# それ以外を Nitro に委譲する (worker/index.ts)。DO 本体は別 worker
-# nuxt-items-sync に分離済み (この worker は migration を持たないので
-# `wrangler versions upload` (no-traffic) release が CF error 10211 を踏まない)。
+# Nitro 出力を包む custom worker entry。/ws/items/* を items-sync worker に
+# service binding 経由で転送し、それ以外を Nitro に委譲する (worker/index.ts)。
+# DO 本体は別 worker nuxt-items-sync に分離済み (この worker は DO binding /
+# migration を持たないので `wrangler versions upload` (no-traffic) release が
+# CF error 10211/10061 を踏まない)。
 main = "./worker/index.ts"
 assets = { directory = "./.output/public/", binding = "ASSETS" }
 
-# items-sync (マルチデバイス同期) WebSocket relay DO への external binding。
-# DO 実体 + migration は別 worker nuxt-items-sync 側で `wrangler deploy` 配備し、
-# ここでは script_name 経由で stub を引くだけ (この app は migration を宣言しない)。
-[[durable_objects.bindings]]
-name = "ITEMS_SYNC"
-class_name = "ItemsSyncDO"
-script_name = "nuxt-items-sync"
+# items-sync (マルチデバイス同期) worker への **service binding**。
+# DO 本体 + DO binding + migration は別 worker nuxt-items-sync 側が内包し、app は
+# worker→worker fetch で /ws/items/* を転送するだけ。app は DO binding (class_name
+# 参照) を持たないので DO migration / class 登録を一切持たず、no-traffic
+# `wrangler versions upload` release を維持できる (DO binding だと class_name 参照が
+# delete-class を阻む [error 10061])。
+[[services]]
+binding = "ITEMS_SYNC"
+service = "nuxt-items-sync"
 
-# この app worker 自身は secret を bind しない (INTERNAL_SHARED_SECRET の
-# secrets_store binding は DO worker nuxt-items-sync に移管済み)。ただし companion
-# の DO worker が実行時に INTERNAL_SHARED_SECRET を必要とするため、repo の secret
-# backup 監査対象として明示宣言し続ける (secret-verify が wave deploy 前に GCP 上の
-# 存在を検証 = secret 不在で DO 起動不能になるのを CI で先に検出)。Refs #290。
+# この app worker 自身は secret を一切 bind しない (INTERNAL_SHARED_SECRET の
+# secrets_store binding は DO worker nuxt-items-sync に移管済み)。
+# secrets.required は CI secret-verify の監査対象であると同時に **wrangler が
+# deploy 時に worker 上の secret 存在を強制**するフィールドなので、ここに
+# INTERNAL_SHARED_SECRET を書くと app の versions upload / deploy が
+# "required secrets have not been set" で fail する (app には bind されていない
+# ため)。app は secret 不要なので必ず空にする。INTERNAL_SHARED_SECRET の存在は
+# DO worker (nuxt-items-sync) 側の secrets_store binding が deploy 時に解決し、
+# 不在なら DO worker の deploy が loud fail する。Refs #290。
 [secrets]
-required = ["INTERNAL_SHARED_SECRET"]
+required = []
+
+# app は DO を定義しないので migration は一切持たない (prod/staging とも)。
+# prod は versions upload のみで deploy されてきた = ItemsSyncDO の v1 は未適用 = class
+# 登録が無いのでそのまま service binding 版を no-traffic deploy 可。migration を置くと
+# versions upload が 10211 で弾かれるので絶対に置かない。staging に残る旧 class 登録は
+# worker 再作成で消す (env.staging のコメント参照)。
 
 [build]
 command = "npm run build"
@@ -46,12 +59,18 @@ NUXT_PUBLIC_API_BASE_URL = "https://alc-api.ippoan.org"
 [env.staging]
 name = "nuxt-items-staging"
 
-# named env は top-level binding を継承しないので external DO binding を再宣言。
-# DO 実体 + migration は別 worker nuxt-items-sync-staging 側が持つ。
-[[env.staging.durable_objects.bindings]]
-name = "ITEMS_SYNC"
-class_name = "ItemsSyncDO"
-script_name = "nuxt-items-sync-staging"
+# named env は top-level binding を継承しないので service binding を再宣言。
+[[env.staging.services]]
+binding = "ITEMS_SYNC"
+service = "nuxt-items-sync-staging"
+
+# migration は持たない (app は DO を定義しない)。
+# 注意: 既存の nuxt-items-staging worker には #27/#28 の wrangler deploy で
+# ItemsSyncDO の class 登録が残っており、それを残したまま新版 (DO 非定義) を deploy
+# すると 10064、deleted_classes で消そうとすると binding 参照の catch-22 で 10061 に
+# なる。staging は disposable なので **worker を一度削除して fresh に作り直す** ことで
+# 旧 class 登録ごと消す (migration 不要)。`npx wrangler delete --env staging` 後に
+# 通常 deploy で再作成される (custom domain route も再付与される)。Refs #290。
 
 [[env.staging.routes]]
 pattern = "items-staging.ippoan.org"
