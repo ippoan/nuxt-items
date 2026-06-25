@@ -17,6 +17,14 @@ name = "ITEMS_SYNC"
 class_name = "ItemsSyncDO"
 script_name = "nuxt-items-sync"
 
+# この app worker 自身は secret を bind しない (INTERNAL_SHARED_SECRET の
+# secrets_store binding は DO worker nuxt-items-sync に移管済み)。ただし companion
+# の DO worker が実行時に INTERNAL_SHARED_SECRET を必要とするため、repo の secret
+# backup 監査対象として明示宣言し続ける (secret-verify が wave deploy 前に GCP 上の
+# 存在を検証 = secret 不在で DO 起動不能になるのを CI で先に検出)。Refs #290。
+[secrets]
+required = ["INTERNAL_SHARED_SECRET"]
+
 [build]
 command = "npm run build"
 
