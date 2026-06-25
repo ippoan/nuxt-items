@@ -2,20 +2,23 @@ name = "nuxt-items"
 account_id = "24b45709d060d957340180e995f0d373"
 compatibility_date = "2024-09-19"
 compatibility_flags = ["nodejs_compat"]
-# Nitro 出力を包む custom worker entry。/ws/items/* を ItemsSyncDO に振り分け、
-# それ以外を Nitro に委譲する (worker/index.ts)。DO 本体は別 worker
-# nuxt-items-sync に分離済み (この worker は migration を持たないので
-# `wrangler versions upload` (no-traffic) release が CF error 10211 を踏まない)。
+# Nitro 出力を包む custom worker entry。/ws/items/* を items-sync worker に
+# service binding 経由で転送し、それ以外を Nitro に委譲する (worker/index.ts)。
+# DO 本体は別 worker nuxt-items-sync に分離済み (この worker は DO binding /
+# migration を持たないので `wrangler versions upload` (no-traffic) release が
+# CF error 10211/10061 を踏まない)。
 main = "./worker/index.ts"
 assets = { directory = "./.output/public/", binding = "ASSETS" }
 
-# items-sync (マルチデバイス同期) WebSocket relay DO への external binding。
-# DO 実体 + migration は別 worker nuxt-items-sync 側で `wrangler deploy` 配備し、
-# ここでは script_name 経由で stub を引くだけ (この app は migration を宣言しない)。
-[[durable_objects.bindings]]
-name = "ITEMS_SYNC"
-class_name = "ItemsSyncDO"
-script_name = "nuxt-items-sync"
+# items-sync (マルチデバイス同期) worker への **service binding**。
+# DO 本体 + DO binding + migration は別 worker nuxt-items-sync 側が内包し、app は
+# worker→worker fetch で /ws/items/* を転送するだけ。app は DO binding (class_name
+# 参照) を持たないので DO migration / class 登録を一切持たず、no-traffic
+# `wrangler versions upload` release を維持できる (DO binding だと class_name 参照が
+# delete-class を阻む [error 10061])。
+[[services]]
+binding = "ITEMS_SYNC"
+service = "nuxt-items-sync"
 
 # この app worker 自身は secret を一切 bind しない (INTERNAL_SHARED_SECRET の
 # secrets_store binding は DO worker nuxt-items-sync に移管済み)。
@@ -29,17 +32,10 @@ script_name = "nuxt-items-sync"
 [secrets]
 required = []
 
-# 一時的な transition migration (Refs #290)。app worker が #27 で定義していた
-# ItemsSyncDO class の登録が CF 上に残っており、external binding (script_name) へ
-# 切替えた新版を deploy すると CF error 10064 ("existing Durable Objects depend on
-# class ItemsSyncDO") で弾かれる。deleted_classes でその旧 class 登録を掃除する。
-# 旧 namespace の DO データは削除されるが、別 worker への切替で元々 fresh namespace に
-# なるため実質的なデータ損失は split に内在 (client は backend から再 sync)。
-# **適用後は別 PR でこの block を削除し、release を no-traffic versions upload に戻す**
-# (migration を含む version は versions upload 不可 = 10211 のため)。
-[[migrations]]
-tag = "v2"
-deleted_classes = ["ItemsSyncDO"]
+# top-level (prod) には migration を置かない。prod は versions upload のみで deploy
+# されてきた = ItemsSyncDO の v1 migration は prod には未適用 (class 登録が無い) なので
+# deleted_classes 不要。migration を置くと versions upload が 10211 で弾かれる。
+# (staging は #27/#28 の wrangler deploy で v1 適用済みなので env.staging 側で掃除する)
 
 [build]
 command = "npm run build"
@@ -62,17 +58,23 @@ NUXT_PUBLIC_API_BASE_URL = "https://alc-api.ippoan.org"
 [env.staging]
 name = "nuxt-items-staging"
 
-# named env は top-level binding を継承しないので external DO binding を再宣言。
-# DO 実体 + migration は別 worker nuxt-items-sync-staging 側が持つ。
-[[env.staging.durable_objects.bindings]]
-name = "ITEMS_SYNC"
-class_name = "ItemsSyncDO"
-script_name = "nuxt-items-sync-staging"
+# named env は top-level binding を継承しないので service binding を再宣言。
+[[env.staging.services]]
+binding = "ITEMS_SYNC"
+service = "nuxt-items-sync-staging"
 
-# 一時的な transition migration (top-level と同じ、Refs #290)。staging deploy は
-# CI が `wrangler deploy --env staging` で行う (versions upload ではない) ため、
-# この deleted_classes は merge 時の staging deploy で自動適用される。適用後は
-# 別 PR で削除する。
+# staging app には #27/#28 の `wrangler deploy --env staging` で ItemsSyncDO の
+# class 登録 (v1 new_sqlite_classes) が残っている。service binding 化で class_name を
+# 参照する binding が消えたので、deleted_classes (v2) で旧 class 登録を安全に掃除できる
+# (DO binding が残っていると 10061 "without also removing the binding" で阻まれる)。
+# staging deploy は CI が `wrangler deploy --env staging` で行う (versions upload では
+# ない) ため migration を適用できる。v1 は履歴として残し、新規に v2 が適用される。
+# 旧 namespace の DO データは削除されるが、別 worker 切替で元々 fresh namespace になる
+# ため実質的損失は無い (client は backend から再 sync)。Refs #290。
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["ItemsSyncDO"]
+
 [[env.staging.migrations]]
 tag = "v2"
 deleted_classes = ["ItemsSyncDO"]
