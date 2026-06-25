@@ -17,9 +17,10 @@ export default defineNuxtConfig({
   typescript: {
     tsConfig: {
       // worker/index.ts は build 成果物 (../.output) に依存し nuxi typecheck では
-      // 解決できないため除外。DO 本体 (ItemsSyncDO) は別 worker nuxt-items-sync に
-      // 分離済みで、そちらの tsconfig が型を担保する。
-      exclude: ['../worker/index.ts'],
+      // 解決できないため除外。DO 本体 (ItemsSyncDO) は別 worker nuxt-items-sync
+      // (workers/items-sync) に分離済みで、@cloudflare/workers-types を持つ
+      // そちらの tsconfig が型を担保する。app の vue-tsc は workers/ を見ない。
+      exclude: ['../worker/index.ts', '../workers'],
     },
   },
 
