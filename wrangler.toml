@@ -17,13 +17,17 @@ name = "ITEMS_SYNC"
 class_name = "ItemsSyncDO"
 script_name = "nuxt-items-sync"
 
-# この app worker 自身は secret を bind しない (INTERNAL_SHARED_SECRET の
-# secrets_store binding は DO worker nuxt-items-sync に移管済み)。ただし companion
-# の DO worker が実行時に INTERNAL_SHARED_SECRET を必要とするため、repo の secret
-# backup 監査対象として明示宣言し続ける (secret-verify が wave deploy 前に GCP 上の
-# 存在を検証 = secret 不在で DO 起動不能になるのを CI で先に検出)。Refs #290。
+# この app worker 自身は secret を一切 bind しない (INTERNAL_SHARED_SECRET の
+# secrets_store binding は DO worker nuxt-items-sync に移管済み)。
+# secrets.required は CI secret-verify の監査対象であると同時に **wrangler が
+# deploy 時に worker 上の secret 存在を強制**するフィールドなので、ここに
+# INTERNAL_SHARED_SECRET を書くと app の versions upload / deploy が
+# "required secrets have not been set" で fail する (app には bind されていない
+# ため)。app は secret 不要なので必ず空にする。INTERNAL_SHARED_SECRET の存在は
+# DO worker (nuxt-items-sync) 側の secrets_store binding が deploy 時に解決し、
+# 不在なら DO worker の deploy が loud fail する。Refs #290。
 [secrets]
-required = ["INTERNAL_SHARED_SECRET"]
+required = []
 
 [build]
 command = "npm run build"
