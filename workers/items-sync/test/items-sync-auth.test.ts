@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { decideSyncAuth } from '../../worker/auth-decision'
+import { decideSyncAuth } from '../src/auth-decision'
 
 const ORG = 'org-prod-1111'
 

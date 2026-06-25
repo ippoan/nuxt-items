@@ -23,9 +23,10 @@ jobs:
       use_auth_client_dev: true
       npm_scope: '@ippoan'
       post_install_script: 'npx nuxt prepare'
-      # #290: wrangler.toml に INTERNAL_SHARED_SECRET の secrets_store_secrets
-      # binding を追加 (ItemsSyncDO の introspect ハンドシェイク用) したので
-      # secret-verify が必須化する。GCP cloudsql-sv の同名 secret を WIF で検証。
+      # #290: INTERNAL_SHARED_SECRET (ItemsSyncDO の introspect ハンドシェイク用)。
+      # binding 自体は別 worker (workers/items-sync) に移動したが、DO は app と同じ
+      # GCP cloudsql-sv の同名 secret に依存するので、wave deploy 前に存在を WIF で
+      # 検証し続ける (secret 不在で DO が起動不能になるのを CI で先に検出)。
       gcp_secret_verify_project: ${{ vars.GCP_PROJECT_ID_STAGING }}
       gcp_secret_verify_provider: ${{ vars.GCP_WIF_PROVIDER }}
       gcp_secret_verify_sa: ${{ vars.GCP_WIF_SERVICE_ACCOUNT_STAGING }}

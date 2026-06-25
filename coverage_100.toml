@@ -27,6 +27,3 @@ path = "server/api/barcode-lookup.ts"
 
 [[files]]
 path = "server/middleware/auth.ts"
-
-[[files]]
-path = "worker/auth-decision.ts"

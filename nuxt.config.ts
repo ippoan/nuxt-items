@@ -16,10 +16,10 @@ export default defineNuxtConfig({
 
   typescript: {
     tsConfig: {
-      // worker/ の DO entry / 本体は build 成果物 (../.output) と
-      // cloudflare:workers に依存し nuxi typecheck では解決できないため除外。
-      // pure な worker/auth-decision.ts は vitest が型/カバレッジを担保する。
-      exclude: ['../worker/index.ts', '../worker/items-sync-do.ts'],
+      // worker/index.ts は build 成果物 (../.output) に依存し nuxi typecheck では
+      // 解決できないため除外。DO 本体 (ItemsSyncDO) は別 worker nuxt-items-sync に
+      // 分離済みで、そちらの tsconfig が型を担保する。
+      exclude: ['../worker/index.ts'],
     },
   },
 
