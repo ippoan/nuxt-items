@@ -17,10 +17,8 @@ export default defineConfig({
       include: [
         'composables/**/*.ts',
         'server/**/*.ts',
-        // worker/ のうち pure な認可判定だけ instrument する。DO 本体
-        // (items-sync-do.ts) / entry (index.ts) は cloudflare:workers /
-        // build 成果物に依存し vitest で import できないため対象外。
-        'worker/auth-decision.ts',
+        // items-sync DO (auth-decision / DO 本体 / entry) は別 worker
+        // nuxt-items-sync に分離済み。そちらの vitest が認可判定を担保する。
       ],
       exclude: [
         'composables/useAuth.ts',

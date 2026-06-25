@@ -3,29 +3,27 @@ account_id = "24b45709d060d957340180e995f0d373"
 compatibility_date = "2024-09-19"
 compatibility_flags = ["nodejs_compat"]
 # Nitro 出力を包む custom worker entry。/ws/items/* を ItemsSyncDO に振り分け、
-# それ以外を Nitro に委譲し、Durable Object を同居 export する (worker/index.ts)。
+# それ以外を Nitro に委譲する (worker/index.ts)。DO 本体は別 worker
+# nuxt-items-sync に分離済み (この worker は migration を持たないので
+# `wrangler versions upload` (no-traffic) release が CF error 10211 を踏まない)。
 main = "./worker/index.ts"
 assets = { directory = "./.output/public/", binding = "ASSETS" }
 
-# items-sync (マルチデバイス同期) の WebSocket relay DO。cf-grpc-proxy から移設
-# (#290 で cross-tenant 穴を塞ぐため auth-worker introspect ハンドシェイクに変更)。
+# items-sync (マルチデバイス同期) WebSocket relay DO への external binding。
+# DO 実体 + migration は別 worker nuxt-items-sync 側で `wrangler deploy` 配備し、
+# ここでは script_name 経由で stub を引くだけ (この app は migration を宣言しない)。
 [[durable_objects.bindings]]
 name = "ITEMS_SYNC"
 class_name = "ItemsSyncDO"
+script_name = "nuxt-items-sync"
 
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["ItemsSyncDO"]
-
-# ItemsSyncDO が auth-worker POST /auth/introspect を叩くための共有 secret。
-# WS ハンドシェイク時に browser JWT を署名検証 + tenant/ACL 判定する。
-# auth-worker / carins / cc-relay と同じ CF Secrets Store entry を物理共有し、
-# GCP cloudsql-sv に同名 secret が SoT として存在 (frontend-ci の secret-verify
-# が test.yml の gcp_secret_verify_* 配線で検証する)。
-[[secrets_store_secrets]]
-binding = "INTERNAL_SHARED_SECRET"
-store_id = "bd7bc91a3e5f4111add4acf6cb4b8733"
-secret_name = "INTERNAL_SHARED_SECRET"
+# この app worker 自身は secret を bind しない (INTERNAL_SHARED_SECRET の
+# secrets_store binding は DO worker nuxt-items-sync に移管済み)。ただし companion
+# の DO worker が実行時に INTERNAL_SHARED_SECRET を必要とするため、repo の secret
+# backup 監査対象として明示宣言し続ける (secret-verify が wave deploy 前に GCP 上の
+# 存在を検証 = secret 不在で DO 起動不能になるのを CI で先に検出)。Refs #290。
+[secrets]
+required = ["INTERNAL_SHARED_SECRET"]
 
 [build]
 command = "npm run build"
@@ -48,19 +46,12 @@ NUXT_PUBLIC_API_BASE_URL = "https://alc-api.ippoan.org"
 [env.staging]
 name = "nuxt-items-staging"
 
-# named env は top-level binding を継承しないので DO / migration / secret を再宣言。
+# named env は top-level binding を継承しないので external DO binding を再宣言。
+# DO 実体 + migration は別 worker nuxt-items-sync-staging 側が持つ。
 [[env.staging.durable_objects.bindings]]
 name = "ITEMS_SYNC"
 class_name = "ItemsSyncDO"
-
-[[env.staging.migrations]]
-tag = "v1"
-new_sqlite_classes = ["ItemsSyncDO"]
-
-[[env.staging.secrets_store_secrets]]
-binding = "INTERNAL_SHARED_SECRET"
-store_id = "bd7bc91a3e5f4111add4acf6cb4b8733"
-secret_name = "INTERNAL_SHARED_SECRET"
+script_name = "nuxt-items-sync-staging"
 
 [[env.staging.routes]]
 pattern = "items-staging.ippoan.org"

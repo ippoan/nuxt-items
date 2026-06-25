@@ -1,0 +1,61 @@
+name: items-sync DO worker
+
+# nuxt-items-sync は ItemsSyncDO (Durable Object + new_sqlite_classes migration)
+# を定義する独立 worker。app 本体 (nuxt-items) は script_name でこの DO を外部
+# binding し、自身では migration を持たない (= app は no-traffic release を維持し
+# 100% にならない、Refs #290)。
+#
+# DO migration を含む version は `wrangler versions upload` では deploy できない
+# (Cloudflare error 10211: migration は non-versioned deployment 必須)。よって
+# この worker だけは frontend-ci.yml を使わず bespoke に `wrangler deploy` する。
+# app の frontend-ci release script は `${CMD//wrangler deploy/wrangler versions
+# upload}` で global 置換するため、ここを frontend-ci 経由にすると migration
+# deploy が壊れる。
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - 'workers/items-sync/**'
+      - '.github/workflows/items-sync-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/items-sync
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npx vitest run
+
+      # tag push (v*) → prod、それ以外 (main push / workflow_dispatch) → staging。
+      # DO migration があるため versions upload ではなく wrangler deploy を使う。
+      - name: Deploy (staging)
+        if: github.ref_type != 'tag'
+        run: npx wrangler deploy --env staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Deploy (production)
+        if: github.ref_type == 'tag'
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
