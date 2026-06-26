@@ -1,6 +1,6 @@
 ---
 name: nuxt-items-map
-generated-from: nuxt-items:535c09184bda3a3e1c3d4d5666d76c127bb31af9
+generated-from: nuxt-items:22140f1451dff56054b7a5ef94fb19448931c67f
 paths: [components/, composables/, pages/, server/]
 description: ippoan/nuxt-items (物品管理 PWA、Nuxt 4 + Cloudflare Workers) の構造ナビゲーション。バーコード/NFC スキャン・画像アップロード・WebSocket マルチデバイス同期 (Durable Objects) の配置と PWA/同期設定を 1 枚にまとめる。トリガー:「nuxt-items」「物品管理」「items.ippoan.org」「バーコード」「NFC」「barcode-lookup」「amazon-lookup」「useItemsSync」「sync.mtamaramu.com」「PWA」等。
 ---
@@ -22,7 +22,7 @@ Durable Objects) でクロスデバイス同期する。**`app/` を使わず re
 | **pages** | `pages/index.vue`, `app.vue` | 単一ページ物品ツリー UI |
 | **components/items** | `Item{List,Detail,Form,Breadcrumbs}.vue`, `BarcodeScanner/Search.vue`, `Nfc{Scanner,Writer}.vue`, `ImagePicker/Thumbnail.vue`, `OwnerTypeToggle.vue` | 物品 CRUD / バーコード / NFC / 画像 / org⇔個人切替 |
 | **composables** | `useItems.ts`, `useItemsSync.ts`, `useAuth.ts`, `useFileUpload.ts`, `useImageCache.ts`, `useNfc.ts`, `useProductLookup.ts` | 物品状態 / WS 同期 / 認証 / 画像 / NFC / 商品検索 |
-| **server/api** | `barcode-lookup.ts`, `amazon-lookup.ts` | 外部商品 DB / Amazon 商品照会プロキシ |
+| **server/api** | `barcode-lookup.ts`, `amazon-lookup.ts`, `proxy/[...path].ts` | 外部商品 DB / Amazon 商品照会プロキシ + rust-alc-api 転送 proxy (introspect 検証 + X-Tenant-ID/X-User-* 注入、#434) |
 | **server/middleware** | `auth.ts` | JWT gate + LINE WORKS 自動ログイン (`?lw=` / `lw_domain` cookie) |
 | **types / utils** | `types/`, `utils/` | 型定義 / ヘルパ |
 
@@ -30,13 +30,14 @@ Durable Objects) でクロスデバイス同期する。**`app/` を使わず re
 
 - nuxt.config: `nitro.preset = cloudflare-module`、modules `@vite-pwa/nuxt` `@nuxt/ui` `@vueuse/nuxt`、`transpile: ['@ippoan/auth-client']`。`pwa.manifest` (物品管理 PWA、share_target あり)、HMR は wss/clientPort 443。
 - wrangler.toml: top-level=prod (`nuxt-items`, items.ippoan.org) / `[env.staging]`=staging。`[observability] enabled=true`、`[build] command="npm run build"`。
-- vars: `NUXT_PUBLIC_AUTH_WORKER_URL`、`NUXT_PUBLIC_SYNC_URL` (`wss://sync.mtamaramu.com`)、`NUXT_PUBLIC_API_BASE_URL` (alc-api)。
+- vars: `NUXT_PUBLIC_AUTH_WORKER_URL`、`NUXT_PUBLIC_SYNC_URL` (`wss://items.ippoan.org`)、`NUXT_PUBLIC_API_BASE_URL` (alc-api、旧 client 直叩き base、後方互換残置)、`NUXT_ALC_API_URL` (proxy 転送先)。`AUTH_WORKER` service binding + `INTERNAL_SHARED_SECRET` secrets_store binding を全 env で宣言 (#434 step 2)。
 
 ## gotcha
 
 - **`app/` ディレクトリを使わない旧構成**。`pages/` `components/` `composables/` `server/` が repo 直下。他 nuxt-* repo の `app/...` 感覚でパスを探すと外す。
 - **マルチデバイス同期は別 Worker** (`wss://sync.mtamaramu.com/ws/items/{orgId}?token=JWT`)。Durable Objects Hibernation API + BroadcastChannel。同期 Worker 本体はこの repo に**無い** — `useItemsSync.ts` は client のみ。
 - **LINE WORKS 自動ログイン**: `server/middleware/auth.ts` が `?lw=<domain>` で auth-worker OAuth に直リダイレクト、`lw_domain` cookie で次回以降も自動。`/api/` パスは gate を素通り。
+- **API は `/api/proxy/*` 経由** (#434 step 2): client (`utils/api.ts`、`plugins/api.client.ts` で base=`/api/proxy`) は rust-alc-api を直叩きせず同一オリジン server route 経由。`server/api/proxy/[...path].ts` が `@ippoan/auth-client/server` の `createIdentityProxyHandler` で cookie/Bearer を introspect 検証 → X-Tenant-ID + X-User-* を注入 → `NUXT_ALC_API_URL` (runtimeConfig `alcApiUrl`) に転送。introspect は `AUTH_WORKER` service binding + `INTERNAL_SHARED_SECRET` (Secrets Store binding) を使う (wrangler.toml で全 env 宣言)。
 - CLAUDE.md 無し。テスト方針は `coverage_100.toml` (composables を 100% line coverage で登録)。
 
 ## CCoW / CI から見た立ち位置
