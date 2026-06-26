@@ -51,6 +51,9 @@ export default defineEventHandler(async (event) => {
       (useRuntimeConfig(e).alcApiUrl as string) || 'https://alc-api.ippoan.org',
     authWorkerUrl,
     sharedSecret,
+    // utils/api.ts の path が既に `/api/...` を含むため pathPrefix を '/' にする
+    // (default '/api/' だと /api/proxy/api/items → backend/api/api/items で 404)。
+    pathPrefix: '/',
     // AUTH_WORKER service binding 経由で introspect (worker-to-worker, in-process)。
     introspectFetch: authWorker ? () => authWorker.fetch.bind(authWorker) : undefined,
   })
