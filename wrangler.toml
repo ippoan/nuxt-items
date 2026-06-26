@@ -20,15 +20,33 @@ assets = { directory = "./.output/public/", binding = "ASSETS" }
 binding = "ITEMS_SYNC"
 service = "nuxt-items-sync"
 
-# この app worker 自身は secret を一切 bind しない (INTERNAL_SHARED_SECRET の
-# secrets_store binding は DO worker nuxt-items-sync に移管済み)。
+# auth-worker POST /auth/introspect (#434 step 2) を /api/proxy/* の前段で叩く
+# ための CF service binding (worker-to-worker, in-process)。introspect で
+# browser JWT を検証し X-Tenant-ID + X-User-* を rust-alc-api に注入する。
+[[services]]
+binding = "AUTH_WORKER"
+service = "auth-worker"
+
+# /api/proxy/* の introspect ハンドシェイク用 shared secret (#434 step 2)。
+# auth-worker / cc-relay / ref-files と同じ CF Secrets Store entry を物理共有。
+# GCP cloudsql-sv に同名 secret が SoT として存在し frontend-ci の secret-verify
+# が検証する (test.yml で gcp_secret_verify_* 配線済み)。
+# 注意: これは Secrets Store binding (secrets_store_secrets) であって worker secret
+# ではないので、後述の [secrets] required を空に保ったまま deploy できる
+# (wrangler の "required secrets" 強制とは別経路)。
+[[secrets_store_secrets]]
+binding = "INTERNAL_SHARED_SECRET"
+store_id = "bd7bc91a3e5f4111add4acf6cb4b8733"
+secret_name = "INTERNAL_SHARED_SECRET"
+
+# この app worker 自身は worker secret を一切 bind しない (ItemsSyncDO の
+# secret は DO worker nuxt-items-sync に移管済み)。
 # secrets.required は CI secret-verify の監査対象であると同時に **wrangler が
-# deploy 時に worker 上の secret 存在を強制**するフィールドなので、ここに
+# deploy 時に worker secret の存在を強制**するフィールドなので、ここに
 # INTERNAL_SHARED_SECRET を書くと app の versions upload / deploy が
-# "required secrets have not been set" で fail する (app には bind されていない
-# ため)。app は secret 不要なので必ず空にする。INTERNAL_SHARED_SECRET の存在は
-# DO worker (nuxt-items-sync) 側の secrets_store binding が deploy 時に解決し、
-# 不在なら DO worker の deploy が loud fail する。Refs #290。
+# "required secrets have not been set" で fail する。INTERNAL_SHARED_SECRET は
+# 上記 secrets_store_secrets (Secrets Store binding) で解決するので必ず空にする。
+# Refs #290。
 [secrets]
 required = []
 
@@ -54,7 +72,11 @@ NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth.ippoan.org"
 # 自オリジン (items.ippoan.org) の DO に WS 接続する。cf-grpc-proxy
 # (sync.mtamaramu.com) 脱依存。
 NUXT_PUBLIC_SYNC_URL = "wss://items.ippoan.org"
+# client が直接 fetch する旧 base。#434 step 2 で client は /api/proxy/* (相対)
+# 経由に移行したため通常は未使用。後方互換のため残置。
 NUXT_PUBLIC_API_BASE_URL = "https://alc-api.ippoan.org"
+# /api/proxy/* server route が introspect 検証後に転送する rust-alc-api 直 URL。
+NUXT_ALC_API_URL = "https://rust-alc-api-747065218280.asia-northeast1.run.app"
 
 [env.staging]
 name = "nuxt-items-staging"
@@ -63,6 +85,18 @@ name = "nuxt-items-staging"
 [[env.staging.services]]
 binding = "ITEMS_SYNC"
 service = "nuxt-items-sync-staging"
+
+# /api/proxy/* introspect 用 service binding (#434 step 2)。staging も再宣言。
+[[env.staging.services]]
+binding = "AUTH_WORKER"
+service = "auth-worker-staging"
+
+# /api/proxy/* introspect 用 shared secret (#434 step 2)。staging/prod 統合 entry
+# なので同じ secret_name (auth-worker #189)。named env は継承しないので再宣言。
+[[env.staging.secrets_store_secrets]]
+binding = "INTERNAL_SHARED_SECRET"
+store_id = "bd7bc91a3e5f4111add4acf6cb4b8733"
+secret_name = "INTERNAL_SHARED_SECRET"
 
 # migration は持たない (app は DO を定義しない)。
 # 注意: 既存の nuxt-items-staging worker には #27/#28 の wrangler deploy で
@@ -80,3 +114,4 @@ custom_domain = true
 NUXT_PUBLIC_AUTH_WORKER_URL = "https://auth-staging.ippoan.org"
 NUXT_PUBLIC_SYNC_URL = "wss://items-staging.ippoan.org"
 NUXT_PUBLIC_API_BASE_URL = "https://rust-alc-api-staging-566bls5vfq-an.a.run.app"
+NUXT_ALC_API_URL = "https://rust-alc-api-staging-566bls5vfq-an.a.run.app"

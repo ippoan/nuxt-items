@@ -25,6 +25,9 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // server-only: /api/proxy/* server route が introspect 検証後に転送する
+    // rust-alc-api 直 URL (#434 step 2)。public に置かない (browser に露出させない)。
+    alcApiUrl: process.env.NUXT_ALC_API_URL || '',
     public: {
       authWorkerUrl: process.env.NUXT_PUBLIC_AUTH_WORKER_URL || '',
       syncUrl: process.env.NUXT_PUBLIC_SYNC_URL || '',
