@@ -1,14 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// 転送 + introspect 検証 + identity 注入の本体は @ippoan/auth-client/server の
-// createIdentityProxyHandler に集約 (#434 step 2)。挙動テスト (introspect /
-// X-Tenant-ID + X-User-* 注入 / binary・JSON 分類) は lib 側 (auth-worker)。
-// ここでは本 repo の server route の wiring を固定する:
+// 転送 + introspect / ACL / OIDC mint / identity 注入の本体は auth-worker
+// `/alc-proxy/*` に集約 (#434 step 3 方式 B)。consumer の server route は
+// createAuthWorkerProxyHandler に service binding 経由で thin-forward するだけ。
+// 挙動テスト (X-Alc-Proxy-Secret 検証 / X-Tenant-ID + X-User-* 注入 / binary・JSON
+// 分類) は lib 側 (auth-worker)。ここでは本 repo の server route の wiring を固定:
 //   1. INTERNAL_SHARED_SECRET binding を resolve して渡す (未設定は 503)
-//   2. AUTH_WORKER service binding / authWorkerUrl / backendUrl を解決して委譲
-//   3. createIdentityProxyHandler の戻り値で proxy(event) を返す
+//   2. AUTH_WORKER service binding を resolve して authWorkerFetch に渡す (未設定は 503)
+//   3. pathPrefix='/' を渡す (utils/api.ts の path が既に /api/... を含むため二重防止)
+//   4. createAuthWorkerProxyHandler の戻り値で proxy(event) を返す
 
-const { createIdentityProxyHandlerMock, proxyFn, createErrorMock } = vi.hoisted(() => {
+const { createAuthWorkerProxyHandlerMock, proxyFn, createErrorMock } = vi.hoisted(() => {
   const proxyFn = vi.fn(() => 'PROXY_RESULT')
   ;(globalThis as Record<string, unknown>).defineEventHandler = (fn: unknown) => fn
   const createErrorMock = vi.fn((opts: unknown) => {
@@ -19,45 +21,43 @@ const { createIdentityProxyHandlerMock, proxyFn, createErrorMock } = vi.hoisted(
   ;(globalThis as Record<string, unknown>).createError = createErrorMock
   return {
     proxyFn,
-    createIdentityProxyHandlerMock: vi.fn((_opts: unknown) => proxyFn),
+    createAuthWorkerProxyHandlerMock: vi.fn((_opts: unknown) => proxyFn),
     createErrorMock,
   }
 })
 vi.mock('@ippoan/auth-client/server', () => ({
-  createIdentityProxyHandler: createIdentityProxyHandlerMock,
+  createAuthWorkerProxyHandler: createAuthWorkerProxyHandlerMock,
 }))
-
-vi.stubGlobal('useRuntimeConfig', () => ({ alcApiUrl: 'https://test-api.example.com' }))
 
 import handler from '../../server/api/proxy/[...path]'
 
 interface ProxyWiring {
-  backendUrl: (event: unknown) => string
-  authWorkerUrl: string
   sharedSecret: string
+  authWorkerFetch: () => unknown
+  pathPrefix: string
 }
 
 const call = (event: unknown) => (handler as unknown as (e: unknown) => Promise<unknown>)(event)
 const eventWith = (env: Record<string, unknown>) => ({ context: { cloudflare: { env } } })
 
-describe('proxy handler wiring (createIdentityProxyHandler, #434)', () => {
+describe('proxy handler wiring (createAuthWorkerProxyHandler, #434 方式B)', () => {
   beforeEach(() => {
-    createIdentityProxyHandlerMock.mockClear()
+    createAuthWorkerProxyHandlerMock.mockClear()
     proxyFn.mockClear()
     createErrorMock.mockClear()
   })
 
-  it('INTERNAL_SHARED_SECRET があれば委譲し proxy(event) を返す', async () => {
+  it('INTERNAL_SHARED_SECRET + AUTH_WORKER があれば委譲し proxy(event) を返す', async () => {
     const event = eventWith({
       INTERNAL_SHARED_SECRET: 'secret-x',
-      NUXT_PUBLIC_AUTH_WORKER_URL: 'https://auth-test.example.com',
       AUTH_WORKER: { fetch: vi.fn() },
     })
     const res = await call(event)
-    expect(createIdentityProxyHandlerMock).toHaveBeenCalledTimes(1)
-    const opts = createIdentityProxyHandlerMock.mock.calls[0]![0] as ProxyWiring
+    expect(createAuthWorkerProxyHandlerMock).toHaveBeenCalledTimes(1)
+    const opts = createAuthWorkerProxyHandlerMock.mock.calls[0]![0] as ProxyWiring
     expect(opts.sharedSecret).toBe('secret-x')
-    expect(opts.authWorkerUrl).toBe('https://auth-test.example.com')
+    expect(typeof opts.authWorkerFetch).toBe('function')
+    expect(opts.pathPrefix).toBe('/')
     expect(proxyFn).toHaveBeenCalledWith(event)
     expect(res).toBe('PROXY_RESULT')
   })
@@ -68,27 +68,35 @@ describe('proxy handler wiring (createIdentityProxyHandler, #434)', () => {
       AUTH_WORKER: { fetch: vi.fn() },
     })
     await call(event)
-    const opts = createIdentityProxyHandlerMock.mock.calls[0]![0] as ProxyWiring
+    const opts = createAuthWorkerProxyHandlerMock.mock.calls[0]![0] as ProxyWiring
     expect(opts.sharedSecret).toBe('from-store')
   })
 
+  it('authWorkerFetch は AUTH_WORKER service binding 経由の fetch を返す', async () => {
+    const boundFetch = vi.fn()
+    const event = eventWith({
+      INTERNAL_SHARED_SECRET: 'x',
+      AUTH_WORKER: { fetch: boundFetch },
+    })
+    await call(event)
+    const opts = createAuthWorkerProxyHandlerMock.mock.calls[0]![0] as ProxyWiring
+    // 戻り値は bind 済み fetch (関数) であればよい
+    expect(typeof opts.authWorkerFetch()).toBe('function')
+  })
+
   it('INTERNAL_SHARED_SECRET 未設定なら 503 で弾く (委譲しない)', async () => {
-    await expect(call(eventWith({}))).rejects.toThrow()
+    await expect(call(eventWith({ AUTH_WORKER: { fetch: vi.fn() } }))).rejects.toThrow()
     expect(createErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({ statusCode: 503 }),
     )
-    expect(createIdentityProxyHandlerMock).not.toHaveBeenCalled()
+    expect(createAuthWorkerProxyHandlerMock).not.toHaveBeenCalled()
   })
 
-  it('NUXT_PUBLIC_AUTH_WORKER_URL 未設定なら本番 auth-worker にフォールバック', async () => {
-    await call(eventWith({ INTERNAL_SHARED_SECRET: 'x' }))
-    const opts = createIdentityProxyHandlerMock.mock.calls[0]![0] as ProxyWiring
-    expect(opts.authWorkerUrl).toBe('https://auth.ippoan.org')
-  })
-
-  it('backendUrl は runtimeConfig.alcApiUrl を解決する', async () => {
-    await call(eventWith({ INTERNAL_SHARED_SECRET: 'x' }))
-    const opts = createIdentityProxyHandlerMock.mock.calls[0]![0] as ProxyWiring
-    expect(opts.backendUrl({})).toBe('https://test-api.example.com')
+  it('AUTH_WORKER service binding 未設定なら 503 で弾く (委譲しない)', async () => {
+    await expect(call(eventWith({ INTERNAL_SHARED_SECRET: 'x' }))).rejects.toThrow()
+    expect(createErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 503 }),
+    )
+    expect(createAuthWorkerProxyHandlerMock).not.toHaveBeenCalled()
   })
 })
