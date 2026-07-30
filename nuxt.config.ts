@@ -1,7 +1,10 @@
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
-  modules: ['@vite-pwa/nuxt', '@nuxt/ui', '@vueuse/nuxt'],
+  // chunk load 失敗 (immutable キャッシュされた `/_nuxt/*.js` の 404) からの自動復旧。
+  // `experimental.emitRouteChunkError = 'manual'` と transpile 登録も module 側が行う
+  // ので consumer は 1 行で済む (Refs ippoan/auth-worker#452)。
+  modules: ['@vite-pwa/nuxt', '@nuxt/ui', '@vueuse/nuxt', '@ippoan/auth-client/module'],
 
   devServer: {
     host: '0.0.0.0',
