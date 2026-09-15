@@ -1,4 +1,8 @@
 export default defineNuxtConfig({
+  // auth-client の SSR 認証状態 (opt-in、Refs ippoan/auth-worker#560)。
+  // server が cookie から認証の判定 (expiresAt / orgId / username) を決めて useState に載せる。
+  // payload に生 JWT は載らない。戻すときはこの 1 行を消す。
+  ippoanAuthClient: { authState: true },
   compatibilityDate: '2024-11-01',
   devtools: { enabled: true },
   // chunk load 失敗 (immutable キャッシュされた `/_nuxt/*.js` の 404) からの自動復旧。
