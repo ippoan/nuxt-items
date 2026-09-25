@@ -18,30 +18,19 @@ services:
   # rust-alc-api は STORAGE_BACKEND=r2 で boot するため R2 互換の minio を立てる。
   # items API 自体は R2 を使わないが、api の boot を確実にするため alc-app の
   # compose に揃える。
+  # MinIO 公式 image (registry を問わず) が匿名 pull 不可になったため、
+  # 匿名 pull できる凍結アーカイブに差し替え (Refs ippoan/vein-match#20)。
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data --console-address ":9001"
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_DEFAULT_BUCKETS: alc-test:download
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 3s
       timeout: 3s
       retries: 10
-
-  minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: ["sh", "-c"]
-    command:
-      - |
-        mc alias set local http://minio:9000 minioadmin minioadmin
-        mc mb --ignore-existing local/alc-test
-        mc anonymous set download local/alc-test
-    restart: "no"
 
   # rust-alc-api の migrate バイナリで schema を作る (067_create_items 含む)。
   # API_IMAGE は frontend-ci の compat machinery が記録対象 SHA で上書きする。
@@ -72,8 +61,8 @@ services:
     depends_on:
       db-seed:
         condition: service_completed_successfully
-      minio-init:
-        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
     ports:
       - "18080:8080"
     environment:
