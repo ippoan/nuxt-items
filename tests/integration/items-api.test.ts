@@ -10,9 +10,12 @@
  * tenant は tests/fixtures/seed.sql で投入した固定 UUID。
  *
  * mock / ローカル (`npm test`、API_BASE_URL 未設定) では describe.skipIf で skip。
+ *
+ * ★ `/api/items` は alc-records-worker へ移り、rust-alc-api から消える (Refs ippoan/rust-alc-api#680)。
+ * live の相手は rust-alc-api のコンテナなので、live でも回さない (describe.skip)。
  */
 import { describe, it, expect, beforeAll } from 'vitest'
-import { isLive, API_BASE, waitForApi } from '../helpers/api-test-env'
+import { API_BASE, waitForApi } from '../helpers/api-test-env'
 
 const TENANT = '11111111-1111-1111-1111-111111111111'
 const SEED_ITEM = 'aaaaaaaa-0001-0001-0001-aaaaaaaaaaaa'
@@ -36,7 +39,7 @@ async function api(path: string, init: RequestInit = {}): Promise<ApiResult> {
   return { status: res.status, body }
 }
 
-describe.skipIf(!isLive)('rust-alc-api /api/items integration (live)', () => {
+describe.skip('rust-alc-api /api/items integration (live)', () => {
   beforeAll(async () => {
     await waitForApi()
   })
