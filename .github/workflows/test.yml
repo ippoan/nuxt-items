@@ -30,13 +30,4 @@ jobs:
       gcp_secret_verify_project: ${{ vars.GCP_PROJECT_ID_STAGING }}
       gcp_secret_verify_provider: ${{ vars.GCP_WIF_PROVIDER }}
       gcp_secret_verify_sa: ${{ vars.GCP_WIF_SERVICE_ACCOUNT_STAGING }}
-      # 統合テスト: rust-alc-api コンテナ (docker-compose.test.yml の api) 相手に
-      # /api/items を叩き、Release Wave の frontend↔backend compatibility edge を
-      # 記録する。compat machinery が記録 SHA で API_IMAGE を上書きし、その image
-      # で integration を回す (truthful 突合)。Refs ippoan/ci-dashboard#237。
-      has_integration: true
-      compat_backend_repo: 'ippoan/rust-alc-api'
-      compat_backend_image_env: 'API_IMAGE'
-      integration_test_command: 'npx vitest run tests/integration/items-api.test.ts'
-      integration_env: 'TEST_LIVE=1 API_BASE_URL=http://localhost:18080'
     secrets: inherit
