@@ -17,6 +17,9 @@ jobs:
   ci:
     uses: ippoan/ci-workflows/.github/workflows/frontend-ci.yml@main
     with:
+      # staging deploy 後に、この frontend が実際に呼ぶ staging の CF Worker の SHA を tested として
+      # ci-dashboard に報告する (Refs ippoan/ci-dashboard#520)。呼ぶ証拠のある worker だけを並べる。
+      compat_staging_backends: 'ippoan/alc-records-worker'
       has_tests: true
       test_command: 'npx vitest run --coverage'
       install_command: 'npm install'
